@@ -6,3 +6,4 @@
 # It can also use generative CLIP pre-training for spectral generation of functional groups or smiles
 # Modal fusion method：ir_feature is used as the cls_token of smiles_model to re-input smiles_model, and the fused ir_smiles_feature is obtained, and the ir_feature and ir_smiles_feature are compared and learned
 # Modal fusion method：Combine ir_feature and smiles_feature for one-to-one attention, or cross attention
+# 20241125：CLIP-event training for accurate retrieval of infrared functional groups
