@@ -61,7 +61,7 @@ pip install -r requirements.txt
 ### 2. Data & Checkpoints Download
 
 All large data files, processed libraries, and pre-trained model weights are hosted on Hugging Face for easy access. You must download these assets manually and place them into the corresponding directories as structured in this project to run the local scripts. 
-Download Hub: Hugging Face Repository
+ **[Download Hub: Hugging Face Repository](https://huggingface.co/Skylight666/CSU-IR)**
 
 ### 3. Training
 
