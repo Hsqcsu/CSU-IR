@@ -108,31 +108,30 @@ The performance and reliability of these tools are backed by extensive benchmark
 
 Here is a summary of our model's performance benchmarks.
 
-| General Retrieval (Internal Test) | Top-1 Accuracy    | Top-10 Accuracy    |
-| --------------------------------- | ----------------- | ------------------ |
-| Library Size: 4k                  | 0.8849  | 0.9745  |
-| Library Size: 200k                | 0.6210  | 0.9004  |
-| Library Size: 1M                  | 0.5202  | 0.8245  |
-| Library Size: 2M                  | 0.4501  | 0.7755  |
+| General Retrieval (Internal Test) | Top-1 Accuracy | Top-10 Accuracy |
+| :-------------------------------: | :------------: | :-------------: |
+|         Library Size: 4k          |     0.8849     |     0.9745      |
+|        Library Size: 200k         |     0.6210     |     0.9004      |
+|          Library Size: 1M         |     0.5202     |     0.8245      |
+|          Library Size: 2M         |     0.4501     |     0.7755      |
 
-| General Retrieval (External NIST Test) | Top-1 Accuracy  | Top-10 Accuracy |
-| -------------------------------------- | --------------- | --------------- |
-| Library Size: NIST                     | 0.8250   | 1.0000   |
-| Library Size: 4k                       | 0.7750   | 0.9500   |
-| Library Size: 200k                     | 0.4750   | 0.8500   |
-| Library Size: 1M                       | 0.4750   | 0.8250   |
-| Library Size: 2M                       | 0.3250   | 0.7250   |
+| General Retrieval (External NIST Test) | Top-1 Accuracy | Top-10 Accuracy |
+| :------------------------------------: | :------------: | :-------------: |
+|          Library Size: NIST          |     0.8250     |     1.0000      |
+|           Library Size: 4k           |     0.7750     |     0.9500      |
+|          Library Size: 200k          |     0.4750     |     0.8500      |
+|           Library Size: 1M           |     0.4750     |     0.8250      |
+|           Library Size: 2M           |     0.3250     |     0.7250      |
 
-| NPS Retrieval (Internal Test) | Top-1 Accuracy  | Top-10 Accuracy |
-| ----------------------------- | --------------- | --------------- |
-| Existed PS Library            | 0.6190   | 0.9524   |
-| Derivative PS Library  <small>6 NPS filtered</small>      | 0.3889   | 0.8333   |
+| NPS Retrieval (Internal Test)                      | Top-1 Accuracy | Top-10 Accuracy |
+| :------------------------------------------------: | :------------: | :-------------: |
+|                 Existed PS Library                 |     0.6190     |     0.9524      |
+| Derivative PS Library* <br> <small>(6 NPS filtered)</small> |     0.3889     |     0.8333      |
 
-
-| PS-Classifier Accuracy (NPS Test Set) | Accuracy      |
-| ------------------------------------- | ------------- |
-| IR-Classifier                         | 100%   |
-| SMILES-Classifier                     | 95.24% |
+| PS-Classifier Accuracy (NPS Test Set) |  Accuracy  |
+| :-----------------------------------: | :--------: |
+|             IR-Classifier             |    100%    |
+|           SMILES-Classifier           |   95.24%   |
 
 ---
 
