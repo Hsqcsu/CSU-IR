@@ -34,7 +34,7 @@ Experience the full power of our models instantly, without any local setup. Our 
 
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Train CSU-IR Model**                 | Pre-train the core CSU-IR model from scratch using our simulation datasets.         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/Hsqcsu/CSU-IR/blob/main/train_CSU-IR_in_colab.ipynb)                               |
+| **Train CSU-IR Model**                 | Pre-train the core CSU-IR model from scratch using our simulation datasets.         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/train_CSU-IR_in_colab.ipynb)                              |
 | **Train PS-SMILES-Classifier**         | Train the specialized classifier for psychoactive substances using SMILES data.     | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/Hsqcsu/CSU-IR/blob/main/train_SMILE_Classifier_in_colab.ipynb)                               |                             |
 
 ## 💻 Local Installation and Usage
