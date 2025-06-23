@@ -1,0 +1,45 @@
+# Configuration for the SMILES Classifier training script
+
+paths:
+  output_dir: "check_points/local_trained"
+  tokenizer: "model/tokenizer-smiles-roberta-1e_new"
+  pretrained_smiles_encoder: "check_points/best_smiles_model_650-4000.pth"
+
+
+  train_smiles: "data/pretrain_data/SMILES_Classifier/train_smiles.txt"
+  train_labels: "data/pretrain_data/SMILES_Classifier/train_labels.pt"
+  val_smiles: "data/pretrain_data/SMILES_Classifier/val_smiles.txt"
+  val_labels: "data/pretrain_data/SMILES_Classifier/val_labels.pt"
+  test_smiles: "data/pretrain_data/SMILES_Classifier/test_smiles.txt"
+  test_labels: "data/pretrain_data/SMILES_Classifier/test_labels.pt"
+
+
+model_params:
+  smiles_encoder:
+    smiles_maxlen: 300
+    max_position_embeddings: 505
+    vocab_size: 181
+    feature_dim: 768
+
+  classifier:
+    dim: 1024
+    num_classes: 2
+
+training_params:
+  num_epochs: 100
+  device: "auto"
+
+
+dataloader_params:
+  batch_size: 208
+  num_workers: 0
+
+
+optimizer_params:
+  learning_rate: 5.0e-5
+  weight_decay: 1.0e-4
+
+
+model_save_params:
+  num_best_models: 5
+  loss_log_file: "loss_data.json"
