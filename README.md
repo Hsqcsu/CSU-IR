@@ -13,54 +13,66 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
   
 ![image](https://github.com/user-attachments/assets/9fa914cf-4c32-42a5-b594-ab4cd67941f4)
 ```mermaid
-graph TD
-    subgraph "CSU-IR: A Dual-Function Framework"
-        direction LR
-        
-        subgraph "A. Retrieval Service"
-            direction TB
-            A1(IR Spectrum) --> B1(IR Encoder)
-            C1(SMILES Library) --> D1(SMILES Encoder)
-            B1 -- Encoded IR Feature --> E1{Similarity Search}
-            D1 -- Encoded SMILES Features --> E1
-            E1 --> F1(Ranked Candidate Molecules)
+graph LR
+    subgraph "CSU-IR Framework: Core Encoders Powering Multiple Applications"
+        direction TB
+
+        %% --- Core Shared Components (The Brains) ---
+        subgraph " "
+            direction LR
+            IR_Encoder(IR Encoder)
+            SMILES_Encoder(SMILES Encoder)
         end
         
-        subgraph "B. Classification Service"
+        %% --- Application 1: Retrieval Service ---
+        subgraph "Application 1: Retrieval Service"
             direction TB
-            subgraph "IR-based Classification"
-                A2(Single IR Spectrum) --> B2(IR Encoder)
-                B2 -- IR Feature --> C2(IR-Classifier)
-                C2 --> D2{"Is it a Psychoactive Substance? (Yes/No)"}
-            end
-            
-            subgraph "SMILES-based Classification"
-                A3(Single SMILES String) --> B3(SMILES Encoder)
-                B3 -- SMILES Feature --> C3(SMILES-Classifier)
-                C3 --> D3{"Is it a Psychoactive Substance? (Yes/No)"}
-            end
+            Input_IR_Single(Single IR Spectrum) -- "Input" --> IR_Encoder
+            Input_SMILES_Lib(SMILES Library) -- "Input Library" --> SMILES_Encoder
+            IR_Encoder -- "IR Feature" --> Similarity_Search{Similarity Search}
+            SMILES_Encoder -- "Library Features" --> Similarity_Search
+            Similarity_Search --> Output_Retrieval(Ranked Candidate Molecules)
+        end
+
+        %% --- Application 2: IR Classification ---
+        subgraph "Application 2: IR-based Classification"
+            direction TB
+            Input_IR_Single_Classify(Single IR Spectrum) -- "Input" --> IR_Encoder
+            IR_Encoder -- "IR Feature" --> IR_Classifier(IR-Classifier)
+            IR_Classifier --> Output_IR_Classify{"Is it a Psychoactive Substance?<br/>(Yes/No)"}
+        end
+        
+        %% --- Application 3: SMILES Classification ---
+        subgraph "Application 3: SMILES-based Classification"
+            direction TB
+            Input_SMILES_Single_Classify(Single SMILES String) -- "Input" --> SMILES_Encoder
+            SMILES_Encoder -- "SMILES Feature" --> SMILES_Classifier(SMILES-Classifier)
+            SMILES_Classifier --> Output_SMILES_Classify{"Is it a Psychoactive Substance?<br/>(Yes/No)"}
         end
     end
 
-    %% Styling
-    style A1 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
-    style C1 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
-    style A2 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
-    style A3 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    %% --- Styling for Clarity ---
+    % Inputs
+    style Input_IR_Single fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    style Input_SMILES_Lib fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    style Input_IR_Single_Classify fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    style Input_SMILES_Single_Classify fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
     
-    style B1 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
-    style D1 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
-    style B2 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
-    style B3 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
+    % Core Encoders
+    style IR_Encoder fill:#cce6ff,stroke:#5b9dff,stroke-width:2px,font-weight:bold
+    style SMILES_Encoder fill:#cce6ff,stroke:#5b9dff,stroke-width:2px,font-weight:bold
 
-    style C2 fill:#fff0b3,stroke:#ffc107,stroke-width:2px
-    style C3 fill:#fff0b3,stroke:#ffc107,stroke-width:2px
+    % Classifiers
+    style IR_Classifier fill:#fff0b3,stroke:#ffc107,stroke-width:2px
+    style SMILES_Classifier fill:#fff0b3,stroke:#ffc107,stroke-width:2px
     
-    style E1 fill:#f0e6ff,stroke:#965de8,stroke-width:2px
+    % Processes
+    style Similarity_Search fill:#f0e6ff,stroke:#965de8,stroke-width:2px
     
-    style F1 fill:#d4edda,stroke:#28a745,stroke-width:2px
-    style D2 fill:#d4edda,stroke:#28a745,stroke-width:2px
-    style D3 fill:#d4edda,stroke:#28a745,stroke-width:2px
+    % Outputs
+    style Output_Retrieval fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style Output_IR_Classify fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style Output_SMILES_Classify fill:#d4edda,stroke:#28a745,stroke-width:2px
 ```
 ## 🚀 Quick Start with Google Colab
 
