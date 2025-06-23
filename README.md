@@ -13,6 +13,55 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
   
 ![image](https://github.com/user-attachments/assets/9fa914cf-4c32-42a5-b594-ab4cd67941f4)
 
+graph TD
+    subgraph "CSU-IR: A Dual-Function Framework"
+        direction LR
+        
+        subgraph "A. Retrieval Service"
+            direction TB
+            A1(IR Spectrum) --> B1(IR Encoder)
+            C1(SMILES Library) --> D1(SMILES Encoder)
+            B1 -- Encoded IR Feature --> E1{Similarity Search}
+            D1 -- Encoded SMILES Features --> E1
+            E1 --> F1(Ranked Candidate Molecules)
+        end
+        
+        subgraph "B. Classification Service"
+            direction TB
+            subgraph "IR-based Classification"
+                A2(Single IR Spectrum) --> B2(IR Encoder)
+                B2 -- IR Feature --> C2(IR-Classifier)
+                C2 --> D2{"Is it a Psychoactive Substance? (Yes/No)"}
+            end
+            
+            subgraph "SMILES-based Classification"
+                A3(Single SMILES String) --> B3(SMILES Encoder)
+                B3 -- SMILES Feature --> C3(SMILES-Classifier)
+                C3 --> D3{"Is it a Psychoactive Substance? (Yes/No)"}
+            end
+        end
+    end
+
+    %% Styling
+    style A1 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    style C1 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    style A2 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    style A3 fill:#e6fffa,stroke:#3ddc84,stroke-width:2px
+    
+    style B1 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
+    style D1 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
+    style B2 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
+    style B3 fill:#cce6ff,stroke:#5b9dff,stroke-width:2px
+
+    style C2 fill:#fff0b3,stroke:#ffc107,stroke-width:2px
+    style C3 fill:#fff0b3,stroke:#ffc107,stroke-width:2px
+    
+    style E1 fill:#f0e6ff,stroke:#965de8,stroke-width:2px
+    
+    style F1 fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style D2 fill:#d4edda,stroke:#28a745,stroke-width:2px
+    style D3 fill:#d4edda,stroke:#28a745,stroke-width:2px
+
 ## 🚀 Quick Start with Google Colab
 
 Experience the full power of our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically.
