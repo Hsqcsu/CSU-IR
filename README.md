@@ -29,50 +29,64 @@ For users who wish to run the project locally, please follow these steps.
 
 ### 1. Environment Setup
 
-Setting up the environment is straightforward using `pip`.
+Setting up the environment is straightforward using pip.
+
+#### 1. Clone the repository
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/Hsqcsu/CSU-IR.git
 cd CSU-IR
+```
 
-# 2. Install the required packages using pip
+#### 2. Install the required packages using pip
+
+```bash
 pip install -r requirements.txt
+```
 
 ### 2. Data & Checkpoints Download
 
-All large data files, processed libraries, and pre-trained model weights are hosted on Hugging Face for easy access. **You must download these assets manually** and place them into the corresponding directories as structured in this project to run the local scripts.
-
-*   **[Download Hub: Hugging Face Repository](https://huggingface.co/Skylight666/CSU-IR)**
+All large data files, processed libraries, and pre-trained model weights are hosted on Hugging Face for easy access. You must download these assets manually and place them into the corresponding directories as structured in this project to run the local scripts.  
+Download Hub: Hugging Face Repository
 
 ### 3. Training
 
-You can initiate training scripts using a configuration file. All configs are located in the `configs/` directory.
+You can initiate training scripts using a configuration file. All configs are located in the configs/ directory.
+
+> Ensure you are in the project's root directory and your environment is activated.
+
+#### Pre-train CSU-IR with Molecular Dynamics (MD) data
 
 ```bash
-# Ensure you are in the project's root directory and your environment is activated.
-
-# Pre-train CSU-IR with Molecular Dynamics (MD) data
 python -m CSU-IR.train_and_val.pretrain_MD --config configs/config_CSU-IR_pretrain_MD.yaml
+```
 
-# Pre-train CSU-IR with Density Functional Theory (DFT) data
+#### Pre-train CSU-IR with Density Functional Theory (DFT) data
+
+```bash
 python -m CSU-IR.train_and_val.pretrain_DFT --config configs/config_CSU-IR_pretrain_DFT.yaml
+```
 
-# Train the SMILES-based Psychoactive Substance Classifier
+#### Train the SMILES-based Psychoactive Substance Classifier
+
+```bash
 python -m PS-Classifier.train_and_val.trian_SMILES_Classifier --config configs/config_SMILES_Classifer_train.yaml
+```
 
-> **Note on Fine-tuning and IR-Classifier Training:**
+> **Note on Fine-tuning and IR-Classifier Training:**  
 > The datasets used for fine-tuning the CSU-IR model and training the IR-Classifier are subject to copyright and are not publicly released. However, the code and logic are provided for transparency. The fine-tuning process mirrors the pre-training scripts. The IR-Classifier training script can be found at [`PS-Classifier/train_and_val/train_IR_Classifier.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/PS-Classifier/train_and_val/train_IR_Classifier.py).
+
+---
 
 ### 4. Testing and Inference
 
 Scripts for testing and inference are available in their respective project folders. Please ensure you have downloaded the required data and model weights first.
 
-*   **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
-*   **PS-Classifier**: [`PS-Classifier/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/PS-Classifier/test_and_infer)
+- **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
+- **PS-Classifier**: [`PS-Classifier/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/PS-Classifier/test_and_infer)
 
-> **✨ Use Your Own Library!**
-> To perform retrieval against your own custom library, please refer to this script:
+> **✨ Use Your Own Library!**  
+> To perform retrieval against your own custom library, please refer to this script:  
 > [`single_test_in_user_defined_library.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/test_and_infer/single_test_in_user_defined_library.py)
 
 ---
@@ -84,10 +98,10 @@ We have integrated all functionalities into a public Hugging Face Space for easy
 **[➡️ Try the Live Demo Here!](https://huggingface.co/spaces/Skylight666/CSU-IR-normal-compound-identification)**
 
 The demo includes:
-*   **General Retrieval**: Search against multi-scale general-purpose libraries.
-*   **PS Retrieval**: Specialized search against psychoactive substance libraries.
-*   **PS-IR-Classifier**: Classify substances using IR spectra.
-*   **PS-SMILES-Classifier**: Classify substances using SMILES strings.
+- **General Retrieval**: Search against multi-scale general-purpose libraries.
+- **PS Retrieval**: Specialized search against psychoactive substance libraries.
+- **PS-IR-Classifier**: Classify substances using IR spectra.
+- **PS-SMILES-Classifier**: Classify substances using SMILES strings.
 
 ## 📊 Performance & Results
 
@@ -124,9 +138,9 @@ Here is a summary of our model's performance benchmarks.
 ## 📦 Hardware Requirements
 
 All experiments were conducted on a single NVIDIA GPU. The full pre-training pipeline for CSU-IR requires approximately **48 hours**:
-*   **Stage 1 (MD Data)**: ~40 hours
-*   **Stage 2 (DFT Data)**: ~6 hours
-*   **Stage 3 (Fine-tuning)**: ~2 hours
+- **Stage 1 (MD Data)**: ~40 hours
+- **Stage 2 (DFT Data)**: ~6 hours
+- **Stage 3 (Fine-tuning)**: ~2 hours
 
 ## 📜 Citation
 
@@ -139,6 +153,7 @@ If you find our work useful in your research, please consider citing our paper:
   journal = {arXiv preprint arXiv:XXXX.XXXXX},
   year    = {2025}
 }
+```
 
 ## 🙏 Acknowledgements
 
@@ -147,5 +162,5 @@ If you find our work useful in your research, please consider citing our paper:
 ## 📬 Contact
 
 We welcome any questions, suggestions, or collaboration opportunities. Please feel free to open an issue on GitHub or contact us via email.
-*   **Email**: `232307004@csu.edu.cn`
+- **Email**: `232307004@csu.edu.cn`
 
