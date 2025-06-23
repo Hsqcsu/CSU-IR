@@ -110,29 +110,29 @@ Here is a summary of our model's performance benchmarks.
 
 | General Retrieval (Internal Test) | Top-1 Accuracy    | Top-10 Accuracy    |
 | --------------------------------- | ----------------- | ------------------ |
-| Library Size: 4k                  | 0.8849 (3535/3995) | 0.9745 (3893/3995) |
-| Library Size: 200k                | 0.6210 (2481/3995) | 0.9004 (3597/3995) |
-| Library Size: 1M                  | 0.5202 (2078/3995) | 0.8245 (3294/3995) |
-| Library Size: 2M                  | 0.4501 (1798/3995) | 0.7755 (3098/3995) |
+| Library Size: 4k                  | 0.8849  | 0.9745  |
+| Library Size: 200k                | 0.6210  | 0.9004  |
+| Library Size: 1M                  | 0.5202  | 0.8245  |
+| Library Size: 2M                  | 0.4501  | 0.7755  |
 
 | General Retrieval (External NIST Test) | Top-1 Accuracy  | Top-10 Accuracy |
 | -------------------------------------- | --------------- | --------------- |
-| Library Size: NIST                     | 0.8250 (33/40)  | 1.0000 (40/40)  |
-| Library Size: 4k                       | 0.7750 (31/40)  | 0.9500 (38/40)  |
-| Library Size: 200k                     | 0.4750 (19/40)  | 0.8500 (34/40)  |
-| Library Size: 1M                       | 0.4750 (19/40)  | 0.8250 (33/40)  |
-| Library Size: 2M                       | 0.3250 (13/40)  | 0.7250 (29/40)  |
+| Library Size: NIST                     | 0.8250   | 1.0000   |
+| Library Size: 4k                       | 0.7750   | 0.9500   |
+| Library Size: 200k                     | 0.4750   | 0.8500   |
+| Library Size: 1M                       | 0.4750   | 0.8250   |
+| Library Size: 2M                       | 0.3250   | 0.7250   |
 
 | NPS Retrieval (Internal Test) | Top-1 Accuracy  | Top-10 Accuracy |
 | ----------------------------- | --------------- | --------------- |
-| Existed PS Library            | 0.6190 (26/42)  | 0.9524 (40/42)  |
-| Derivative PS Library*  *<small>6 NPS filtered</small>      | 0.3889 (14/36)  | 0.8333 (30/36)  |
+| Existed PS Library            | 0.6190   | 0.9524   |
+| Derivative PS Library  <small>6 NPS filtered</small>      | 0.3889   | 0.8333   |
 
 
 | PS-Classifier Accuracy (NPS Test Set) | Accuracy      |
 | ------------------------------------- | ------------- |
-| IR-Classifier                         | 100% (42/42)  |
-| SMILES-Classifier                     | 95.24% (40/42) |
+| IR-Classifier                         | 100%   |
+| SMILES-Classifier                     | 95.24% |
 
 ---
 
