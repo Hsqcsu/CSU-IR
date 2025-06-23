@@ -10,6 +10,8 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🎯 **Specialized for Psychoactive Substances**: Purpose-built models and libraries for the accurate retrieval and classification of Novel Psychoactive Substances (NPS).
 *   🔬 **Strong Interpretability**: The model architecture is designed to provide insights into the spectral-structural correlations it learns.
 *   🧩 **Versatile Applications**: The framework offers broad utility, featuring not only high-performance retrieval for general compounds but also a specialized search for psychoactive substances. Additionally, it includes dedicated classifiers for both IR spectra and SMILES strings, all of which are deployable through a user-friendly web interface.
+  
+![image](https://github.com/user-attachments/assets/9fa914cf-4c32-42a5-b594-ab4cd67941f4)
 
 ## 🚀 Quick Start with Google Colab
 
@@ -140,7 +142,7 @@ Here is a summary of our model's performance benchmarks.
 All experiments were conducted on a single NVIDIA GPU (RTX 4090). The full pre-training pipeline for CSU-IR requires approximately **48 hours**:
 - **Stage 1 (MD Data)**: ~40 hours
 - **Stage 2 (DFT Data)**: ~6 hours
-- **Stage 3 (Fine-tuning)**: ~2 hours
+- **Stage 3 (Experimental Data Fine-tuning)**: ~2 hours
 
 ## 📜 Citation
 
