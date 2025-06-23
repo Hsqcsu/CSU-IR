@@ -12,7 +12,7 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🧩 **Versatile Applications**: The framework offers broad utility, featuring not only high-performance retrieval for general compounds but also a specialized search for psychoactive substances. Additionally, it includes dedicated classifiers for both IR spectra and SMILES strings, all of which are deployable through a user-friendly web interface.
   
 ![image](https://github.com/user-attachments/assets/9fa914cf-4c32-42a5-b594-ab4cd67941f4)
-
+```mermaid
 graph TD
     subgraph "CSU-IR: A Dual-Function Framework"
         direction LR
@@ -61,7 +61,7 @@ graph TD
     style F1 fill:#d4edda,stroke:#28a745,stroke-width:2px
     style D2 fill:#d4edda,stroke:#28a745,stroke-width:2px
     style D3 fill:#d4edda,stroke:#28a745,stroke-width:2px
-
+```
 ## 🚀 Quick Start with Google Colab
 
 Experience the full power of our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically.
