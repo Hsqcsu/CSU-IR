@@ -1,2 +1,3 @@
 rdkit-pypi
 jcamp
+numpy<2.0
