@@ -15,13 +15,27 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 
 ## 🚀 Quick Start with Google Colab
 
-Experience the full power of our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically.
+Experience the full power of our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically, allowing you to explore, test, and even train our models directly in your browser.
+
+---
+
+### **Demonstration & Testing Notebooks**
 
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Interactive Demo & All Tests**       | Explore all test results interactively. | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_all_in_colab.ipynb)                               |
-| **Train CSU-IR Model**                 | Pre-train the core CSU-IR model from scratch on simulation datasets.            | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/train_CSU-IR_in_colab.ipynb)                               |
-| **Train PS-SMILES-Classifier**         | Fine-tune the specialized classifier for psychoactive substances using SMILES.      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/Hsqcsu/CSU-IR/blob/main/train_SMILE_Classifier_in_colab.ipynb)                               |
+| **CSU-IR General Retrieval**           | See the results and visualizations for general compound retrieval tests.          | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_CSU-IR_General_retrieval_in_colab.ipynb)     |
+| **CSU-IR NPS Retrieval**               | Explore the specialized retrieval results for Novel Psychoactive Substances (NPS).  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_CSU-IR_NPS_retrieval_in_colab.ipynb)       |
+| **PS-IR-Classifier Demo**              | View the performance and interactive demo of the IR-based PS classifier.          | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_PS-IR-Classifier_in_colab.ipynb)          |
+| **PS-SMILES-Classifier Demo**          | View the performance and interactive demo of the SMILES-based PS classifier.      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_PS-SMILES-Classifier_in_colab.ipynb)      |
+
+---
+
+### **Model Training Notebooks**
+
+| Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
+| -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Train CSU-IR Model**                 | Pre-train the core CSU-IR model from scratch using our simulation datasets.         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/Hsqcsu/CSU-IR/blob/main/train_CSU-IR_in_colab.ipynb)                               |
+| **Train PS-SMILES-Classifier**         | Train the specialized classifier for psychoactive substances using SMILES data.     | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://github.com/Hsqcsu/CSU-IR/blob/main/train_SMILE_Classifier_in_colab.ipynb)                               |                             |
 
 ## 💻 Local Installation and Usage
 
