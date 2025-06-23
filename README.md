@@ -11,72 +11,8 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🔬 **Strong Interpretability**: The model architecture is designed to provide insights into the spectral-structural correlations it learns.
 *   🧩 **Versatile Applications**: The framework offers broad utility, featuring not only high-performance retrieval for general compounds but also a specialized search for psychoactive substances. Additionally, it includes dedicated classifiers for both IR spectra and SMILES strings, all of which are deployable through a user-friendly web interface.
   
-![image](https://github.com/user-attachments/assets/9fa914cf-4c32-42a5-b594-ab4cd67941f4)
-```mermaid
-graph TD
-    %% Define a main container for the whole diagram
-    subgraph "CSU-IR Framework: Core Encoders Powering Multiple Applications"
-        direction TB
+![254f9974b2d8bac33bf861a1658e588](https://github.com/user-attachments/assets/f15612cc-5e10-485e-8403-e4e48ad9d968)
 
-        %% --- Section 1: Shared Core Components ---
-        subgraph " "
-            style Core fill:#fff,stroke:#fff
-            direction LR
-            IR_Encoder(["IR Encoder"]);
-            SMILES_Encoder(["SMILES Encoder"]);
-        end
-        
-        %% --- Section 2: The Three Applications ---
-        subgraph " "
-            style Apps fill:#fff,stroke:#fff
-            direction LR
-
-            %% Application 1: Retrieval
-            subgraph "Application 1: Retrieval Service"
-                Input_IR_Single(IR Spectrum) --> IR_Encoder;
-                Input_SMILES_Lib(SMILES Library) --> SMILES_Encoder;
-                IR_Encoder -- IR Feature --> Similarity_Search{Similarity Search};
-                SMILES_Encoder -- Library Features --> Similarity_Search;
-                Similarity_Search --> Output_Retrieval(Ranked Candidates);
-            end
-            
-            %% Application 2: IR Classification
-            subgraph "Application 2: IR-based Classification"
-                Input_IR_Single_Classify(Single IR Spectrum) --> IR_Encoder;
-                IR_Encoder -- IR Feature --> IR_Classifier(IR-Classifier);
-                IR_Classifier --> Output_IR_Classify{"Is it Psychoactive?<br/>(Yes/No)"};
-            end
-            
-            %% Application 3: SMILES Classification
-            subgraph "Application 3: SMILES-based Classification"
-                Input_SMILES_Single_Classify(Single SMILES String) --> SMILES_Encoder;
-                SMILES_Encoder -- SMILES Feature --> SMILES_Classifier(SMILES-Classifier);
-                SMILES_Classifier --> Output_SMILES_Classify{"Is it Psychoactive?<br/>(Yes/No)"};
-            end
-        end
-    end
-
-    %% --- Styling Section ---
-    %% Inputs
-    classDef input fill:#e6fffa,stroke:#3ddc84,stroke-width:2px;
-    class Input_IR_Single,Input_SMILES_Lib,Input_IR_Single_Classify,Input_SMILES_Single_Classify input;
-    
-    %% Core Encoders
-    classDef encoder fill:#cce6ff,stroke:#5b9dff,stroke-width:2px,font-weight:bold;
-    class IR_Encoder,SMILES_Encoder encoder;
-
-    %% Classifiers
-    classDef classifier fill:#fff0b3,stroke:#ffc107,stroke-width:2px;
-    class IR_Classifier,SMILES_Classifier classifier;
-    
-    %% Processes
-    classDef process fill:#f0e6ff,stroke:#965de8,stroke-width:2px;
-    class Similarity_Search process;
-    
-    %% Outputs
-    classDef output fill:#d4edda,stroke:#28a745,stroke-width:2px;
-    class Output_Retrieval,Output_IR_Classify,Output_SMILES_Classify output;
-```
 ## 🚀 Quick Start with Google Colab
 
 Experience the full power of our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically.
