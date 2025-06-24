@@ -1,4 +1,2 @@
 rdkit-pypi
 jcamp
-numpy<2.0
-pandas>=1.5.0,<2.3.0
