@@ -11,7 +11,8 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🔬 **Strong Interpretability**: The model architecture is designed to provide insights into the spectral-structural correlations it learns.
 *   🧩 **Versatile Applications**: The framework offers broad utility, featuring not only high-performance retrieval for general compounds but also a specialized search for psychoactive substances. Additionally, it includes dedicated classifiers for both IR spectra and SMILES strings, all of which are deployable through a user-friendly web interface.
   
-![254f9974b2d8bac33bf861a1658e588](https://github.com/user-attachments/assets/f15612cc-5e10-485e-8403-e4e48ad9d968)
+![f1e41b9ebe1c32be57a8bdae9b52858](https://github.com/user-attachments/assets/591ab163-b86e-483f-b8ee-ce6c865e95ac)
+
 
 ## 🚀 Quick Start with Google Colab
 
