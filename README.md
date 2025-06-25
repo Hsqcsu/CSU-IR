@@ -49,14 +49,14 @@ For users who wish to run the project locally, please follow these steps.
 
 Setting up the environment is straightforward using pip.
 
-#### 1. Clone the repository
+#### ①. Clone the repository
 
 ```bash
 git clone https://github.com/Hsqcsu/CSU-IR.git
 cd CSU-IR
 ```
 
-#### 2. Install the required packages using pip
+#### ②. Install the required packages using pip
 
 ```bash
 pip install -r requirements.txt
@@ -92,8 +92,8 @@ python -m CSU-IR.train_and_val.pretrain_DFT --config configs/config_CSU-IR_pretr
 python -m PS-Classifier.train_and_val.trian_SMILES_Classifier --config configs/config_SMILES_Classifer_train.yaml
 ```
 
-> **Note on Fine-tuning and IR-Classifier Training:**  
-> The datasets used for fine-tuning the CSU-IR model and training the IR-Classifier are subject to copyright and are not publicly released. However, the code and logic are provided for transparency. The fine-tuning process mirrors the pre-training scripts. The IR-Classifier training script can be found at [`PS-Classifier/train_and_val/train_IR_Classifier.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/PS-Classifier/train_and_val/train_IR_Classifier.py).
+> **Note on Experimental Fine-tuning and IR-Classifier Training:**  
+> The datasets used for experimental fine-tuning the CSU-IR model and training the IR-Classifier are subject to copyright and are not publicly released. However, the code and logic are provided for transparency. The fine-tuning process mirrors the pre-training scripts. The IR-Classifier training script can be found at [`PS-Classifier/train_and_val/train_IR_Classifier.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/PS-Classifier/train_and_val/train_IR_Classifier.py).
 
 ---
 
