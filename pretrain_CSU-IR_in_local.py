@@ -2,8 +2,8 @@
 #  python -m pretrain_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_DFT.yaml
 import sys
 import os
-import yaml  # 使用 YAML 配置文件
-import json  # 用于保存损失数据
+import yaml 
+import json 
 import argparse
 import torch
 import torch.nn.functional as F
@@ -24,7 +24,6 @@ from model.SMILES_encoder import SmilesModel
 from train_and_val.SmilesEnumerator import augment_smiles, SmilesEnumerator
 
 
-# --- 2. 辅助函数 ---
 def load_smiles_ir(smiles_path, ir_path):
     with open(smiles_path, 'r', encoding='utf-8') as f:
         smiles = f.read().splitlines()
