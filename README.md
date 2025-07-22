@@ -45,9 +45,7 @@ Experience the full power of our models instantly, without any local setup. Our 
 
 For users who wish to run the project locally, please follow these steps.
 
-### 1. Environment Setup
-
-Setting up the environment is straightforward using pip.
+### 1. Using pip to set up environment 
 
 #### ①. Clone the repository
 
