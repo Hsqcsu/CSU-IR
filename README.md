@@ -76,7 +76,8 @@ All large data files, processed libraries, and pre-trained model weights are hos
 You can initiate training scripts using a configuration file. All configs are located in the configs/ directory.
 
 > Ensure you are in the project's root directory and your environment is activated.
-> Put the corresponding training data into the corresponding folder according to the config file. 
+> Put the corresponding training data into the corresponding folder according to the config file.
+> It is strongly recommended to run this script in an IDE terminal (like PyCharm's) instead of the standard system terminal to avoid potential environment-related issues.
 
 #### Pre-train CSU-IR with Molecular Dynamics (MD) data
 
