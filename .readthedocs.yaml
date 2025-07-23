@@ -21,3 +21,7 @@ sphinx:
 # Optionally set the path to CNAME domains here
 # domains:
 #   - docs.example.com
+
+python:
+  install:
+    - requirements: requirements_for_doc.txt
