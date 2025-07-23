@@ -1,0 +1,293 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" data-content_root="./">
+<head>
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Usage Guide &mdash; CSU-IR 1.0 documentation</title>
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=e59714d7" />
+
+  
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=f2a433a1"></script>
+      <script src="_static/doctools.js?v=9bcbadda"></script>
+      <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="CSU-IR documentation" href="index.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            CSU-IR
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Usage Guide</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#step-1-quick-start-with-the-web-service">Step 1: Quick Start with the Web Service</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#step-2-interactive-exploration-with-google-colab">Step 2: Interactive Exploration with Google Colab</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#demonstration-testing-notebooks">Demonstration &amp; Testing Notebooks</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-training-notebooks">Model Training Notebooks</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#step-3-full-local-setup-and-training">Step 3: Full Local Setup and Training</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#prerequisites">Prerequisites</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#installation-and-environment-setup">Installation and Environment Setup</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#local-training">Local Training</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#reproducing-original-results">Reproducing Original Results</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CSU-IR</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">Usage Guide</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/usage.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="usage-guide">
+<h1>Usage Guide<a class="headerlink" href="#usage-guide" title="Link to this heading"></a></h1>
+<p>This guide provides several ways to use and explore the CSU-IR project, from quick online demos to full local setup and training.</p>
+<nav class="contents local" id="contents">
+<ul class="simple">
+<li><p><a class="reference internal" href="#step-1-quick-start-with-the-web-service" id="id1">Step 1: Quick Start with the Web Service</a></p></li>
+<li><p><a class="reference internal" href="#step-2-interactive-exploration-with-google-colab" id="id2">Step 2: Interactive Exploration with Google Colab</a></p>
+<ul>
+<li><p><a class="reference internal" href="#demonstration-testing-notebooks" id="id3">Demonstration &amp; Testing Notebooks</a></p></li>
+<li><p><a class="reference internal" href="#model-training-notebooks" id="id4">Model Training Notebooks</a></p></li>
+</ul>
+</li>
+<li><p><a class="reference internal" href="#step-3-full-local-setup-and-training" id="id5">Step 3: Full Local Setup and Training</a></p>
+<ul>
+<li><p><a class="reference internal" href="#prerequisites" id="id6">Prerequisites</a></p></li>
+<li><p><a class="reference internal" href="#installation-and-environment-setup" id="id7">Installation and Environment Setup</a></p></li>
+<li><p><a class="reference internal" href="#local-training" id="id8">Local Training</a></p></li>
+<li><p><a class="reference internal" href="#reproducing-original-results" id="id9">Reproducing Original Results</a></p></li>
+</ul>
+</li>
+</ul>
+</nav>
+<section id="step-1-quick-start-with-the-web-service">
+<h2><a class="toc-backref" href="#id1" role="doc-backlink">Step 1: Quick Start with the Web Service</a><a class="headerlink" href="#step-1-quick-start-with-the-web-service" title="Link to this heading"></a></h2>
+<p>For a quick and easy way to use the model without any installation, you can use our deployed web service.</p>
+<ul class="simple">
+<li><p><strong>Try the Web Demo</strong>: <a class="reference external" href="https://huggingface.co/spaces/HSQC/CSU-IR">CSU-IR Web Service</a></p></li>
+</ul>
+</section>
+<section id="step-2-interactive-exploration-with-google-colab">
+<h2><a class="toc-backref" href="#id2" role="doc-backlink">Step 2: Interactive Exploration with Google Colab</a><a class="headerlink" href="#step-2-interactive-exploration-with-google-colab" title="Link to this heading"></a></h2>
+<p>Use our pre-configured Google Colab notebooks to check results or perform training in the cloud with free GPU resources. Click on the badges to open the notebooks directly in Google Colab.</p>
+<section id="demonstration-testing-notebooks">
+<h3><a class="toc-backref" href="#id3" role="doc-backlink">Demonstration &amp; Testing Notebooks</a><a class="headerlink" href="#demonstration-testing-notebooks" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27.8%" />
+<col style="width: 50.0%" />
+<col style="width: 22.2%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Notebook</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Link</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>CSU-IR General Retrieval</strong></p></td>
+<td><p>See the results and visualizations for general compound retrieval tests.</p></td>
+<td><a class="reference external image-reference" href="https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_CSU-IR_General_retrieval_in_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+</a>
+</td>
+</tr>
+<tr class="row-odd"><td><p><strong>CSU-IR NPS Retrieval</strong></p></td>
+<td><p>Explore the specialized retrieval results for Novel Psychoactive Substances (NPS).</p></td>
+<td><a class="reference external image-reference" href="https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_CSU-IR_NPS_retrieval_in_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+</a>
+</td>
+</tr>
+<tr class="row-even"><td><p><strong>PS-IR-Classifier Demo</strong></p></td>
+<td><p>View the performance and interactive demo of the IR-based PS classifier.</p></td>
+<td><a class="reference external image-reference" href="https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_PS-IR-Classifier_in_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+</a>
+</td>
+</tr>
+<tr class="row-odd"><td><p><strong>PS-SMILES-Classifier Demo</strong></p></td>
+<td><p>View the performance and interactive demo of the SMILES-based PS classifier.</p></td>
+<td><a class="reference external image-reference" href="https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_PS-SMILES-Classifier_in_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="model-training-notebooks">
+<h3><a class="toc-backref" href="#id4" role="doc-backlink">Model Training Notebooks</a><a class="headerlink" href="#model-training-notebooks" title="Link to this heading"></a></h3>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 27.8%" />
+<col style="width: 50.0%" />
+<col style="width: 22.2%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Notebook</p></th>
+<th class="head"><p>Description</p></th>
+<th class="head"><p>Link</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><strong>Train CSU-IR Model</strong></p></td>
+<td><p>Pre-train the core CSU-IR model from scratch using our simulation datasets.</p></td>
+<td><a class="reference external image-reference" href="https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/train_CSU-IR_in_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+</a>
+</td>
+</tr>
+<tr class="row-odd"><td><p><strong>Train PS-SMILES-Classifier</strong></p></td>
+<td><p>Train the specialized classifier for psychoactive substances using SMILES data.</p></td>
+<td><a class="reference external image-reference" href="https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/train_SMILE_Classifier_in_colab.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" />
+</a>
+</td>
+</tr>
+</tbody>
+</table>
+</section>
+</section>
+<section id="step-3-full-local-setup-and-training">
+<h2><a class="toc-backref" href="#id5" role="doc-backlink">Step 3: Full Local Setup and Training</a><a class="headerlink" href="#step-3-full-local-setup-and-training" title="Link to this heading"></a></h2>
+<p>For advanced use, such as custom training or in-depth analysis, follow these steps to set up the project on your local machine.</p>
+<section id="prerequisites">
+<h3><a class="toc-backref" href="#id6" role="doc-backlink">Prerequisites</a><a class="headerlink" href="#prerequisites" title="Link to this heading"></a></h3>
+<ol class="arabic simple">
+<li><p><strong>Install Anaconda</strong>:
+We recommend using Conda to manage Python environments. If you don’t have it, download and install it from the <a class="reference external" href="https://www.anaconda.com/products/distribution">Anaconda official website</a>.</p></li>
+<li><p><strong>Prepare an IDE</strong>:
+An Integrated Development Environment (IDE) like <a class="reference external" href="https://www.jetbrains.com/pycharm/">PyCharm</a> or <a class="reference external" href="https://code.visualstudio.com/">Visual Studio Code</a> is highly recommended for a better development experience.</p></li>
+</ol>
+</section>
+<section id="installation-and-environment-setup">
+<h3><a class="toc-backref" href="#id7" role="doc-backlink">Installation and Environment Setup</a><a class="headerlink" href="#installation-and-environment-setup" title="Link to this heading"></a></h3>
+<p>First, open your terminal (Anaconda Prompt on Windows).</p>
+<p><strong>1. Clone the Repository</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/Hsqcsu/CSU-IR.git
+<span class="nb">cd</span><span class="w"> </span>CSU-IR
+</pre></div>
+</div>
+<p><strong>2. Create and Activate the Conda Environment</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>conda<span class="w"> </span>create<span class="w"> </span>--name<span class="w"> </span>CSU-IR<span class="w"> </span><span class="nv">python</span><span class="o">=</span><span class="m">3</span>.11.9
+conda<span class="w"> </span>activate<span class="w"> </span>CSU-IR
+</pre></div>
+</div>
+<p><strong>3. Install Required Packages</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>requirements_local.txt
+</pre></div>
+</div>
+</section>
+<section id="local-training">
+<h3><a class="toc-backref" href="#id8" role="doc-backlink">Local Training</a><a class="headerlink" href="#local-training" title="Link to this heading"></a></h3>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>Download Datasets First!</strong></p>
+<p>Before you can start training, you must download the required datasets from our Hugging Face repository: <a class="reference external" href="https://huggingface.co/datasets/HSQC/CSU-IR_DATA">CSU-IR Datasets on Hugging Face</a>.</p>
+<p>Please check the corresponding <code class="docutils literal notranslate"><span class="pre">.yaml</span></code> file in the <code class="docutils literal notranslate"><span class="pre">configs/</span></code> directory to identify which specific dataset is needed for each training script. Ensure the data is placed in the correct directory as specified in the configuration (e.g., <code class="docutils literal notranslate"><span class="pre">data/pretrain_data/</span></code>).</p>
+</div>
+<p>Once the environment and data are correctly set up, you can start training the models from the terminal.</p>
+<p><strong>Pre-train CSU-IR with Molecular Dynamics (MD) data</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>CSU-IR.train_and_val.pretrain_MD<span class="w"> </span>--config<span class="w"> </span>configs/config_CSU-IR_pretrain_MD.yaml
+</pre></div>
+</div>
+<p><strong>Pre-train CSU-IR with Density Functional Theory (DFT) data</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>CSU-IR.train_and_val.pretrain_DFT<span class="w"> </span>--config<span class="w"> </span>configs/config_CSU-IR_pretrain_DFT.yaml
+</pre></div>
+</div>
+<p><strong>Train the SMILES-based Psychoactive Substance Classifier</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>python<span class="w"> </span>-m<span class="w"> </span>CSU-IR.train_and_val.train_SMILES_Classifier<span class="w"> </span>--config<span class="w"> </span>configs/config_SMILES_Classifer_train.yaml
+</pre></div>
+</div>
+</section>
+<section id="reproducing-original-results">
+<h3><a class="toc-backref" href="#id9" role="doc-backlink">Reproducing Original Results</a><a class="headerlink" href="#reproducing-original-results" title="Link to this heading"></a></h3>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>To view and reproduce the results from the original paper, you must first download the pre-trained model weights and the required test data.</p>
+<ul class="simple">
+<li><p><strong>Download From</strong>: <a class="reference external" href="https://huggingface.co/HSQC/CSU-IR">CSU-IR Model Hub</a></p></li>
+<li><p><strong>Placement</strong>: Please place all downloaded files into their respective directories as expected by the analysis scripts (e.g., model weights into a <code class="docutils literal notranslate"><span class="pre">checkpoints/</span></code> folder and test data into the <code class="docutils literal notranslate"><span class="pre">data/</span></code> folder).</p></li>
+</ul>
+</div>
+<p>After setting up the necessary files, you can run the provided analysis scripts to reproduce the results.</p>
+<ul class="simple">
+<li><p><strong>Analysis Script</strong>: Please refer to the <code class="docutils literal notranslate"><span class="pre">reproduce_results.py</span></code> script for detailed instructions on execution.</p></li>
+</ul>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="index.html" class="btn btn-neutral float-left" title="CSU-IR documentation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2025, Hsqcsu.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
