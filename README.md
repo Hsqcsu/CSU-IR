@@ -51,12 +51,18 @@ For users who wish to run the project locally, please follow these steps.
 
 ```bash
 git clone https://github.com/Hsqcsu/CSU-IR.git
-cd CSU-IR
 ```
-
-#### ②. Install the required packages using pip
+#### ②. create CSU-IR environment
 
 ```bash
+conda create --name CSU-IR python=3.11.9
+conda activate CSU-IR
+```
+
+#### ③. Install the required packages using pip
+
+```bash
+cd CSU-IR
 pip install -r requirements.txt
 ```
 
