@@ -81,19 +81,19 @@ You can initiate training scripts using a configuration file. All configs are lo
 #### Pre-train CSU-IR with Molecular Dynamics (MD) data
 
 ```bash
-python -m CSU-IR.train_and_val.pretrain_MD --config configs/config_CSU-IR_pretrain_MD.yaml
+python -m pretrain_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_MD.yaml
 ```
 
 #### Pre-train CSU-IR with Density Functional Theory (DFT) data
 
 ```bash
-python -m CSU-IR.train_and_val.pretrain_DFT --config configs/config_CSU-IR_pretrain_DFT.yaml
+python -m pretrain_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_DFT.yaml
 ```
 
 #### Train the SMILES-based Psychoactive Substance Classifier
 
 ```bash
-python -m PS-Classifier.train_and_val.trian_SMILES_Classifier --config configs/config_SMILES_Classifer_train.yaml
+python -m train_SMILES_Classifier_in_local --config configs/config_SMILES_Classifer_train.yaml
 ```
 
 > **Note on Experimental Fine-tuning and IR-Classifier Training:**  
