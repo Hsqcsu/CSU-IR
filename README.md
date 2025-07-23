@@ -150,13 +150,13 @@ Here is a summary of our model's performance benchmarks.
 
 | NPS Retrieval (Internal Test)                      | Top-1 Accuracy | Top-10 Accuracy |
 | :------------------------------------------------: | :------------: | :-------------: |
-|                 Existed PS Library                 |     0.6190     |     0.9524      |
-| Derivative PS Library* <br> <small>(6 NPS filtered)</small> |     0.3889     |     0.8333      |
+|                 Existed PS Library                 |     0.7143     |     0.9762      |
+| Derivative PS Library* <br> <small>(6 NPS filtered)</small> |     0.3235     |     0.8824      |
 
 | PS-Classifier Accuracy (NPS Test Set) |  Accuracy  |
 | :-----------------------------------: | :--------: |
 |             IR-Classifier             |    100%    |
-|           SMILES-Classifier           |   95.24%   |
+|           SMILES-Classifier           |   90.48%   |
 
 ---
 
