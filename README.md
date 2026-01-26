@@ -24,8 +24,8 @@ Experience the full power of our models instantly, without any local setup. Our 
 
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CSU-IR NPS Retrieval**               | Explore the specialized retrieval results for Novel Psychoactive Substances (NPS).  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_CSU-IR_NPS_retrieval_in_colab.ipynb)       |
-| **PS-SMILES-Classifier Demo**          | View the performance and interactive demo of the SMILES-based PS classifier.      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_PS-SMILES-Classifier_in_colab.ipynb)      |
+| **CSU-IR NPS Retrieval**               | Explore the specialized retrieval results for Novel Psychoactive Substances (NPS).  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_CSU-IR_NPS_retrieval_in_colab.ipynb)       |
+| **PS-SMILES-Classifier Demo**          | View the performance and interactive demo of the SMILES-based PS classifier.      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_PS-SMILES-Classifier_in_colab.ipynb)      |
 
 ---
 
