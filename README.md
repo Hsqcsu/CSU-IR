@@ -11,8 +11,7 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🔬 **Strong Interpretability**: The learned representations are highly interpretable, revealing a direct mapping between spectral features and molecular features.
 *   🧩 **Chemical Substructures Detection**: The model successfully detected 83 chemical substructures, including common functional groups, with an average detection rate of 95.46%.
 
-![Fig1](https://github.com/user-attachments/assets/7b3fffd1-6c0d-41c9-99a3-dd9988be6d8e)
-
+![Fig1](https://github.com/user-attachments/assets/163af346-e49d-494c-8889-fa1620fe0988)
 
 ## 🚀 Quick Start with Google Colab
 
