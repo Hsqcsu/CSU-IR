@@ -1,15 +1,15 @@
-# **CSU-IR: Interpretable Unification of Infrared Spectra and Molecular Structures for Enhanced Chemical Identification**
+# **CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval**
 
 [![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b.svg)](https://arxiv.org/abs/YOUR_ARXIV_ID)  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_all_in_colab.ipynb)  [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Spaces-Demo-blue.svg)](https://huggingface.co/spaces/Skylight666/CSU-IR-normal-compound-identification)
 
-This is the official code repository for our paper, **"Interpretable Contrastively Spectral-structural Unification between infrared Spectra and Molecular Structures assisting Novel Psychoactive Substances identification"**.
+This is the official code repository for our paper, **"CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval"**.
 
-We introduce **CSU-IR**, a novel deep learning framework designed for high-precision compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
+We introduce **CSU-IR**, a novel deep learning framework designed for high-precision unknown-compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
 
-*   🚀 **Exceptional Million-Scale Performance**: Maintains high accuracy even when retrieving against libraries containing millions of compounds.
-*   🎯 **Specialized for Psychoactive Substances**: Purpose-built models and libraries for the accurate retrieval and classification of Novel Psychoactive Substances (NPS).
-*   🔬 **Strong Interpretability**: The model architecture is designed to provide insights into the spectral-structural correlations it learns.
-*   🧩 **Versatile Applications**: The framework offers broad utility, featuring not only high-performance retrieval for general compounds but also a specialized search for psychoactive substances. Additionally, it includes dedicated classifiers for both IR spectra and SMILES strings, all of which are deployable through a user-friendly web interface.
+*   🚀 **Exceptional 100-Million-Scale Performance**: Maintains high accuracy (Recall@1 of 68.13% and a Recall@10 of 93.97%) when retrieving against libraries containing 100 million compounds.
+*   🎯 **Specialized for Psychoactive Substances Identification**: Purpose-built models and libraries for the accurate retrieval and SMILES classification of Psychoactive Substances.
+*   🔬 **Strong Interpretability**: The learned representations are highly interpretable, revealing a direct mapping between spectral features and molecular features.
+*   🧩 **Chemical Substructures Detection**: The model successfully detected 83 chemical substructures, including common functional groups, with an average detection rate of 95.46%.
   
 ![f1e41b9ebe1c32be57a8bdae9b52858](https://github.com/user-attachments/assets/591ab163-b86e-483f-b8ee-ce6c865e95ac)
 
