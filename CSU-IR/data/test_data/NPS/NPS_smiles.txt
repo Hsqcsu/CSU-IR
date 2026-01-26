@@ -8,7 +8,6 @@ CCOc1ccc(Cc2nc3cc([N+](=O)[O-])ccc3n2CCN2CCCC2)cc1
 C[C@@H]1N=C(c2ccccc2Cl)c2cc([N+](=O)[O-])ccc2NC1=O
 CC(=O)Cc1ccc2c(c1)OCO2
 COC(=O)[C@@H](NC(=O)c1n[nH]c2ccc(Br)cc12)C(C)(C)C
-O=C(O)/C=C\C(=O)O
 Cc1nnc2n1-c1ccc(Br)cc1C(c1ccccc1F)=NC2
 CC(=O)O[C@H]1CC[C@@]2(C)C(=CC[C@@H]3[C@@H]2CC[C@]2(C)C(=O)CC[C@@H]32)C1
 O=C(C1CC1)N(c1ccccc1)C1CCN(CCc2ccccc2)CC1.O=C(O)CC(O)(CC(=O)O)C(=O)O
@@ -23,10 +22,8 @@ CCc1cc2c(s1)-n1cnnc1CN=C2c1ccccc1Cl
 O=C1CN=C(c2ccccn2)c2cc(Br)ccc2N1
 CCNC1(c2cccc(F)c2)CCCCC1=O
 CCC(C)Oc1ccc(Cc2nc3cc([N+](=O)[O-])ccc3n2CCN(CC)CC)cc1
-C[C@]12CC[C@H]3[C@@H](CCC4=CC(=O)CC[C@@]43C)[C@@H]1CC[C@H]2O
 CCCCCn1cc(CC(=O)NC2CCCCC2)c2ccccc21
 O=C(c1ccccc1)c1ccc(Cl)cc1
-CN1CCN(C(=O)OC2c3nccnc3C(=O)N2c2ccc(Cl)cn2)CC1
 COC(=O)[C@H]1[C@@H](OC(=O)c2ccccc2)C[C@@H]2CC[C@H]1N2
 CC1=CC(=O)N2CC(=O)N(C)c3ccc(Cl)cc3C2(c2ccccc2)O1
 CCc1cc2c(s1)-n1c(C)nnc1CN=C2c1ccccc1
