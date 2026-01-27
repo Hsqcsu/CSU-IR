@@ -13,8 +13,10 @@ import jcamp
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
 
-from data_process.ir_process import preprocess_spectra_higer_500
-from data_process.ir_process import preprocess_spectra_lower_500
+from data_process.ir_process import preprocess_jdx_spectra_higer_500
+from data_process.ir_process import preprocess_jdx_spectra_lower_500
+from data_process.ir_process import preprocess_csv_spectra_higer_500
+from data_process.ir_process import preprocess_csv_spectra_lower_500
 
 from test_and_infer.infer import ModelInference
 from test_and_infer.infer import get_feature_from_smiles
