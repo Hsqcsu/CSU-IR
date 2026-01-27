@@ -1,7 +1,7 @@
 # Configuration for the CSU-IR pre-training script
 
 paths:
-  output_dir: check_points/local_Multi-stage_training_Stage_I_MD
+  output_dir: check_points/Multi-stage_training_Stage_I_MD
   tokenizer: model/tokenizer-smiles-roberta-1e_new
   train_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_train_smiles.txt
   train_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_train_ir.pt
