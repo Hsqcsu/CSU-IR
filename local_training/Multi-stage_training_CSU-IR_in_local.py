@@ -51,7 +51,7 @@ class IRSmilesDataset(Dataset):
 
 
 
-def validate_model(smiles_model, ir_model, val_loader, device, sme):
+def validate_model(smiles_model, ir_model, val_loader, device):
     smiles_model.eval()
     ir_model.eval()
     running_loss = 0.0
@@ -100,7 +100,6 @@ def validate_model(smiles_model, ir_model, val_loader, device, sme):
 
 
 def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device):
-    sme = SmilesEnumerator()
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
     num_epochs = config['training_params']['num_epochs']
