@@ -106,15 +106,14 @@ def retrieval(ir_spectra_file, spectrum_type, your_library):
 
     if spectrum_type == "absorbance spectrum":
         if wavenumbers[0] > 500:
-            ir_data = preprocess_spectra_higer_500(wavenumbers, transmittances)
+            ir_data = preprocess_jdx_spectra_higer_500(wavenumbers, transmittances)
         else:
-            ir_data = preprocess_spectra_lower_500(file_path, wavenumbers, transmittances)
+            ir_data = preprocess_jdx_spectra_lower_500(wavenumbers, transmittances)
     else:
-        transmittances = transmittances / 100.0
         if wavenumbers[0] > 500:
-            ir_data = preprocess_spectra_higer_500(wavenumbers, transmittances)
+            ir_data = preprocess_csv_spectra_higer_500(wavenumbers, transmittances)
         else:
-            ir_data = preprocess_spectra_lower_500(file_path, wavenumbers, transmittances)
+            ir_data = preprocess_csv_spectra_lower_500(wavenumbers, transmittances)
 
     ir_spectra_tensor = torch.tensor(ir_data, dtype=torch.float32).unsqueeze(0).to(device)
     with torch.no_grad():
