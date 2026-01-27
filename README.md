@@ -23,7 +23,7 @@ Experience our models instantly, without any local setup. Our Colab notebooks ha
 
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **CSU-IR Tesing**               | Explore the specialized retrieval results IN CSU-IR.  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_CSU-IR_NPS_retrieval_in_colab.ipynb)       |
+| **CSU-IR Tesing**               | Explore the specialized retrieval results in CSU-IR.  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_CSU-IR_in_colab.ipynb)       |
 
 ---
 
