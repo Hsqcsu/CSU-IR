@@ -13,10 +13,10 @@ import jcamp
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
 
-from data_process.ir_process import preprocess_jdx_spectra_higer_500
-from data_process.ir_process import preprocess_jdx_spectra_lower_500
-from data_process.ir_process import preprocess_csv_spectra_higer_500
-from data_process.ir_process import preprocess_csv_spectra_lower_500
+from data_process.ir_process import preprocess_absorbances_spectra_higer_500
+from data_process.ir_process import preprocess_absorbances_spectra_lower_500
+from data_process.ir_process import preprocess_transmittances_spectra_higer_500
+from data_process.ir_process import preprocess_transmittances_spectra_lower_500
 
 from test_and_infer.infer import ModelInference
 from test_and_infer.infer import get_feature_from_smiles
@@ -106,14 +106,14 @@ def retrieval(ir_spectra_file, spectrum_type, your_library):
 
     if spectrum_type == "absorbance spectrum":
         if wavenumbers[0] > 500:
-            ir_data = preprocess_jdx_spectra_higer_500(wavenumbers, transmittances)
+            ir_data = preprocess_absorbances_spectra_higer_500(wavenumbers, transmittances)
         else:
-            ir_data = preprocess_jdx_spectra_lower_500(wavenumbers, transmittances)
+            ir_data = preprocess_absorbances_spectra_lower_500(wavenumbers, transmittances)
     else:
         if wavenumbers[0] > 500:
-            ir_data = preprocess_csv_spectra_higer_500(wavenumbers, transmittances)
+            ir_data = preprocess_transmittances_spectra_higer_500(wavenumbers, transmittances)
         else:
-            ir_data = preprocess_csv_spectra_lower_500(wavenumbers, transmittances)
+            ir_data = preprocess_transmittances_spectra_lower_500(wavenumbers, transmittances)
 
     ir_spectra_tensor = torch.tensor(ir_data, dtype=torch.float32).unsqueeze(0).to(device)
     with torch.no_grad():
