@@ -6,7 +6,7 @@ def exp_func(x, a, b, c):
     return a * np.exp(-b * x) + c
 
 # define ir process functions
-def preprocess_jdx_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
+def preprocess_absorbances_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
     wavenumbers = np.array(wavenumbers, dtype=float)
     transmittances = np.array(transmittances, dtype=float)
     valid_indices = np.where(transmittances != 0)[0]
@@ -34,7 +34,7 @@ def preprocess_jdx_spectra_higer_500(wavenumbers, transmittances, method='cubic'
         raise ValueError("The number of filled data points is not equal to 3500")
     return padded_transmittances
 
-def preprocess_jdx_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
+def preprocess_absorbances_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
     wavenumbers = np.array(wavenumbers, dtype=float)
     transmittances = np.array(transmittances, dtype=float)
     valid_indices = np.where(transmittances != 0)[0]
@@ -56,7 +56,7 @@ def preprocess_jdx_spectra_lower_500(wavenumbers, transmittances, method='cubic'
     return padded_transmittances
 
 
-def preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
+def preprocess_transmittances_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
     wavenumbers = np.array(wavenumbers, dtype=float)
     transmittances = np.array(transmittances, dtype=float)
     valid_indices = np.where(transmittances != 0)[0]
@@ -96,7 +96,7 @@ def preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method='cubic'
     return padded_absorbances
 
 
-def preprocess_csv_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
+def preprocess_transmittances_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
     wavenumbers = np.array(wavenumbers, dtype=float)
     transmittances = np.array(transmittances, dtype=float)
     valid_indices = np.where(transmittances != 0)[0]
