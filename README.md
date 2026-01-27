@@ -15,28 +15,25 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 
 ## 🚀 Quick Start with Google Colab
 
-Experience the full power of our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically, allowing you to explore our models directly in your browser.
+Experience our models instantly, without any local setup. Our Colab notebooks handle all dependencies and data downloads automatically, allowing you to explore our models directly in your browser.
 
 ---
 
-### **Demonstration & Testing Notebooks**
+### **NPS Retrieval**
 
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **CSU-IR NPS Retrieval**               | Explore the specialized retrieval results for Novel Psychoactive Substances (NPS).  | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_CSU-IR_NPS_retrieval_in_colab.ipynb)       |
-| **PS-SMILES-Classifier Demo**          | View the performance and interactive demo of the SMILES-based PS classifier.      | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_PS-SMILES-Classifier_in_colab.ipynb)      |
 
 ---
 
-### **Model Training Notebooks**
+### **Training**
 
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Train CSU-IR Model**                 | Train the CSU-IR model using the simulation datasets.         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/train_CSU-IR_in_colab.ipynb)                              |
-| **Train PS-SMILES-Classifier**         | Train the specialized classifier for psychoactive substances using SMILES data.     | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/train_SMILE_Classifier_in_colab.ipynb)     
-
+| **Train CSU-IR**                 | Train the CSU-IR model with DFT data.         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/train_CSU-IR_in_colab.ipynb)                              |
 > **Note on Dataset Size:** 
-> The **Train CSU-IR Model** notebook uses a 1/5 sample of the data for demonstration to avoid exceeding Google Drive storage limits. For full training, please see the `train` instructions in our `README`'s `Local Installation and Usage` section and download the complete dataset from our [Hugging Face Repository](https://huggingface.co/Skylight666/CSU-IR/tree/main).
+> For full training, please see the `train` instructions in our `README`'s `Local Installation and Usage` section and download the complete dataset from our [Hugging Face Repository](https://huggingface.co/Skylight666/CSU-IR/tree/main).
 
 ## 💻 Local Installation and Usage
 
