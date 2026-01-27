@@ -84,7 +84,7 @@ def normalize_smiles(smiles):
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return smiles
-    normalized_smiles = Chem.MolToSmiles(mol, canonical=True)
+    normalized_smiles = Chem.MolToSmiles(mol,isomericSmiles=False, canonical=True)
     return normalized_smiles
 
 
