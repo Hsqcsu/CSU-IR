@@ -1,5 +1,5 @@
-#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_MD.yaml
-#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_DFT.yaml
+#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_I_MD.yaml
+#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
 import sys
 import os
 import yaml 
@@ -21,7 +21,6 @@ sys.path.insert(0, PROJECT_ROOT)
 # If there is a red underline below, don't worry, it will not affect the code running
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
-from train_and_val.SmilesEnumerator import augment_smiles, SmilesEnumerator
 
 
 def load_smiles_ir(smiles_path, ir_path):
@@ -59,11 +58,10 @@ def validate_model(smiles_model, ir_model, val_loader, device, sme):
     with torch.no_grad():
         for ir_spectra_batch, smiles_batch in val_loader_tqdm:
             ir_spectra_tensor = ir_spectra_batch.to(device)
-            current_smiles_batch = [augment_smiles(s, set(), sme) for s in smiles_batch]
 
             tokenizer = smiles_model.smiles_tokenizer
             encoded_smiles = [tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
-                                                    truncation=True, return_tensors='pt') for s in current_smiles_batch]
+                                                    truncation=True, return_tensors='pt') for s in smiles_batch]
             input_ids = torch.cat([item['input_ids'] for item in encoded_smiles], dim=0).to(device)
             attention_mask = torch.cat([item['attention_mask'] for item in encoded_smiles], dim=0).to(device)
             lengths = attention_mask.sum(dim=1)
@@ -117,11 +115,10 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
 
         for ir_spectra_batch, smiles_batch in train_loader_tqdm:
             ir_spectra_tensor = ir_spectra_batch.to(device)
-            current_smiles_batch = [augment_smiles(s, set(), sme) for s in smiles_batch]
 
             tokenizer = smiles_model.smiles_tokenizer
             encoded_smiles = [tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
-                                                    truncation=True, return_tensors='pt') for s in current_smiles_batch]
+                                                    truncation=True, return_tensors='pt') for s in smiles_batch]
             input_ids = torch.cat([item['input_ids'] for item in encoded_smiles], dim=0).to(device)
             attention_mask = torch.cat([item['attention_mask'] for item in encoded_smiles], dim=0).to(device)
             lengths = attention_mask.sum(dim=1)
@@ -201,7 +198,7 @@ def main():
         args = parser.parse_args()
         config_path = args.config
     else:
-        default_config_relative_path = "configs/config_CSU-IR_pretrain_MD.yaml"
+        default_config_relative_path = "configs/config_CSU-IR_Multi-stage_training_I_MD.yaml"
         config_path = os.path.join(PROJECT_ROOT,'..' ,default_config_relative_path)
         print(f"No config provided via command line. Using default: {config_path}")
 
