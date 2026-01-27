@@ -44,6 +44,9 @@ SmilesModel = SmilesModel(roberta_model_path=None,
     feature_dim=768,
 )
 
+#IR_model.load_weights(r'best_ir_model')
+#SmilesModel.load_weights(r'best_smiles_model')
+
 # You need to download the training data in huggingface and put it in the corresponding folder. Here we use the DFT data as an example.
 train_smiles_path = 'QM9S_DFT_train_smiles.txt'
 train_ir_path = 'QM9S_DFT_train_ir.pt'
@@ -90,18 +93,20 @@ print(f"IR_model Parameter: {count_parameters(IR_model)}")
 
 optimizer = AdamW(list(SmilesModel.parameters()) + list(IR_model.parameters()), lr=5e-05, weight_decay=0.0001)
 
+
+warmup_epochs = 10
+num_epochs = 80
 scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_lambda)
 scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
 scaler = GradScaler()
 
-def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num_epochs=80, device='cuda'):
+def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num_epochs, device='cuda'):
     smiles_model.to(device)
     ir_model.to(device)
     best_ratios = []
     best_epochs = []
     model_save_paths_smiles = []
     model_save_paths_ir = []
-
 
     training_losses = []
     validation_losses = []
@@ -284,4 +289,4 @@ def validate_model(smiles_model, ir_model, val_loader, device='cuda'):
     val_loss = running_loss / len(val_loader.dataset)
     return val_loss, top_1_ratio
 
-train_model(SmilesModel, IR_model, train_loader, val_loader, optimizer, num_epochs=80, device=device)
+train_model(SmilesModel, IR_model, train_loader, val_loader, optimizer, num_epochs, device=device)
