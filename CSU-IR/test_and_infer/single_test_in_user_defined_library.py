@@ -26,8 +26,8 @@ You need to download the model weight file in hugging_face and save it in the ch
 '''
 
 TOKENIZER_PATH = os.path.join(PROJECT_ROOT,'model',"tokenizer-smiles-roberta-1e_new")
-PRETRAIN_SMILES_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_smiles_model_500-4000.pth")
-PRETRAIN_IR_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_ir_model_500-4000.pth")
+PRETRAIN_SMILES_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_smiles_model_0.9230379746835443.pth")
+PRETRAIN_IR_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_ir_model_0.9230379746835443.pth")
 LIBRARY_FILE_PATH = os.path.join(PROJECT_ROOT,'data', "example_library_and_ir_for_user_dinfined", "library.txt")
 EXAMPLE_IR_FILE_PATH = os.path.join(PROJECT_ROOT, 'data',"example_library_and_ir_for_user_dinfined", "Ethanol.jdx")
 OUTPUT_IMAGE_PATH = os.path.join(os.path.dirname(__file__), "retrieved_molecules.png")
