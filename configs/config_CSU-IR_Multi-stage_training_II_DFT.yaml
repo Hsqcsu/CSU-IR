@@ -1,7 +1,7 @@
 # Configuration for the CSU-IR pre-training script
 
 paths:
-  output_dir: check_points/local_pretrained_DFT
+  output_dir: check_points/local_Multi-stage_training_Stage_II_DFT
   tokenizer: model/tokenizer-smiles-roberta-1e_new
   ir_model_check_point: check_points/local_pretrained_MD/best_ir_model.pth
   smiles_model_check_point: check_points/local_pretrained_MD/best_smiles_model.pth
