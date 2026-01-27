@@ -1,3 +1,5 @@
+# This is a sample file using Stage_II for training
+
 import sys
 import os
 
@@ -44,16 +46,15 @@ SmilesModel = SmilesModel(roberta_model_path=None,
     feature_dim=768,
 )
 
-#IR_model.load_weights(r'best_ir_model')
-#SmilesModel.load_weights(r'best_smiles_model')
+#IR_model.load_weights(os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_I_MD","best_ir_model_pth"))
+#SmilesModel.load_weights(os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_I_MD", "best_smiles_model_pth"))
 
-# You need to download the training data in huggingface and put it in the corresponding folder. Here we use the DFT data as an example.
-train_smiles_path = 'QM9S_DFT_train_smiles.txt'
-train_ir_path = 'QM9S_DFT_train_ir.pt'
-val_smiles_path = 'QM9S_DFT_val_smiles.txt'
-val_ir_path = 'QM9S_DFT_val_ir.pt'
-test_smiles_path = 'QM9S_DFT_test_smiles.txt'
-test_ir_path = 'QM9S_DFT_test_ir.pt'
+train_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_train_smiles.txt") 
+train_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_train_ir.pt") 
+val_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt") 
+val_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt") 
+test_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt") 
+test_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt") 
 
 smiles_train, ir_train = load_smiles_ir(train_smiles_path, train_ir_path)
 smiles_val, ir_val = load_smiles_ir(val_smiles_path, val_ir_path)
