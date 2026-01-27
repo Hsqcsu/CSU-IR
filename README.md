@@ -91,7 +91,7 @@ python -m local_training/Multi-stage_training_CSU-IR_in_local --config configs/c
 
 ### 4. Testing and Inference
 
-Scripts for testing and inference are available in their respective project folders. Please ensure you have downloaded the required data and model weights, placing them in their corresponding directories as structured in this project, before running the scripts.
+Scripts for testing and inference are available in the respective project folders.
 
 - **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
 
