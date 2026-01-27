@@ -14,7 +14,7 @@ from torch.cuda.amp import autocast, GradScaler
 from tqdm import tqdm
 
 
-PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), 'CSU-IR'))
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'CSU-IR'))
 print(PROJECT_ROOT)
 sys.path.insert(0, PROJECT_ROOT)
 
