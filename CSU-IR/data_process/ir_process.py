@@ -96,7 +96,7 @@ def preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method='cubic'
     return padded_absorbances
 
 
-def preprocess_csv_spectra_lower_than_500(wavenumbers, transmittances, method='cubic'):
+def preprocess_csv_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
     wavenumbers = np.array(wavenumbers, dtype=float)
     transmittances = np.array(transmittances, dtype=float)
     valid_indices = np.where(transmittances != 0)[0]
