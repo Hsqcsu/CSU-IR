@@ -28,7 +28,11 @@ def load_smiles_ir(smiles_path, ir_path):
         smiles = f.read().splitlines()
     ir = torch.load(ir_path)
     return smiles, ir
-
+    
+def lr_lambda(epoch):
+    if epoch < warmup_epochs:
+        return float(epoch + 1) / float(warmup_epochs)
+    return 1.0
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -95,12 +99,16 @@ def validate_model(smiles_model, ir_model, val_loader, device, sme):
     return val_loss, top_1_ratio
 
 
-def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, schedulers, device):
+def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device):
     sme = SmilesEnumerator()
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
     num_epochs = config['training_params']['num_epochs']
+    warmup_epochs = config['scheduler_params']['warmup_epochs']
     num_best_models = config['model_save_params']['num_best_models']
+
+    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_lambda)
+    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
 
     os.makedirs(output_dir, exist_ok=True)
 
@@ -151,11 +159,10 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
             f'Epoch {epoch + 1}/{num_epochs}, Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}, Top-1 Ratio: {top_1_ratio:.4f}')
 
         # Update learning rate
-        warmup_epochs = config['scheduler_params']['warmup_epochs']
         if epoch < 10:
-            schedulers['warmup'].step()
+            scheduler_warmup.step()
         else:
-            schedulers['cosine'].step()
+            scheduler_cosine.step()
 
         # Save top N best models
         current_model_info = (top_1_ratio, epoch + 1, None, None)
@@ -261,10 +268,8 @@ def main():
 
     dl_params = config['dataloader_params']
     pin_memory = torch.cuda.is_available()
-    train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True,
-                              num_workers=dl_params['num_workers'], pin_memory=pin_memory)
-    val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False,
-                            num_workers=dl_params['num_workers'], pin_memory=pin_memory)
+    train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False)
 
     print(f"Number of training samples: {len(train_dataset)}")
     print(f"Number of validation samples: {len(val_dataset)}")
@@ -274,12 +279,10 @@ def main():
     sched_params = config['scheduler_params']
     optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), lr=opt_params['learning_rate'],
                       weight_decay=opt_params['weight_decay'])
-    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_lambda)
-    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
-    schedulers = {'warmup': scheduler_warmup, 'cosine': scheduler_cosine}
+    
 
     # Start training
-    train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, schedulers, device)
+    train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device)
 
 
 if __name__ == '__main__':
