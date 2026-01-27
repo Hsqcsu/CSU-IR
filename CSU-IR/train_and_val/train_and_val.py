@@ -1,4 +1,4 @@
-# This is a sample file using Stage_II for training
+# This is a sample file using DFT_data (Stage_II) for training
 
 import sys
 import os
