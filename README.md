@@ -86,12 +86,13 @@ python -m local_training/Multi-stage_training_CSU-IR_in_local --config configs/c
 ```
 
 > **Note on Stage-III Training:**  
-> The datasets used for Stage-III Training are subject to copyright and are not publicly released. However, the code and logic are provided for transparency. The Stage-III Training process mirrors the Stage-I or II Training scripts. 
+> The datasets used for Stage-III Training are subject to copyright and are not publicly released. However, the code and logic are provided for transparency. The Stage-III Training process mirrors the Stage-I or II Training scripts.
+> We also provide more intuitive training scripts that do not require terminal operations [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val); users can run them directly in the code interface.
 ---
 
 ### 4. Testing and Inference
 
-Scripts for testing and inference are available in the respective project folders.
+Scripts for testing and inference are available in the respective project folders. These code snippets do not require terminal operations; users can run them directly within the code interface.
 
 - **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
 
