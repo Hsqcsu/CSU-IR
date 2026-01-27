@@ -32,8 +32,8 @@ Experience our models instantly, without any local setup. Our Colab notebooks ha
 | Notebook                               | Description                                                                       | Link                                                                                                                                                                                            |
 | -------------------------------------- | --------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Train CSU-IR**                 | Train the CSU-IR model with DFT data.         | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/train_CSU-IR_in_colab.ipynb)                              |
-> **Note on Dataset Size:** 
-> For full training, please see the `train` instructions in our `README`'s `Local Installation and Usage` section and download the complete dataset from our [Hugging Face Repository](https://huggingface.co/Skylight666/CSU-IR/tree/main).
+> **Note:** 
+> For full training, please see the `train` instructions in our `README`'s `Local Installation and Usage` section and download the complete dataset from our [Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR/tree/main).
 
 ## 💻 Local Installation and Usage
 
