@@ -9,7 +9,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
 from torch.cuda.amp import autocast, GradScaler
 from tqdm import tqdm
 
@@ -152,10 +152,10 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
 
         # Update learning rate
         warmup_epochs = config['scheduler_params']['warmup_epochs']
-        if epoch < warmup_epochs:
+        if epoch < 10:
             schedulers['warmup'].step()
         else:
-            schedulers['cosine'].step(epoch - warmup_epochs)
+            schedulers['cosine'].step()
 
         # Save top N best models
         current_model_info = (top_1_ratio, epoch + 1, None, None)
@@ -274,10 +274,8 @@ def main():
     sched_params = config['scheduler_params']
     optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), lr=opt_params['learning_rate'],
                       weight_decay=opt_params['weight_decay'])
-    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lambda e: e / sched_params['warmup_epochs'] if e < sched_params[
-        'warmup_epochs'] else 1.0)
-    scheduler_cosine = CosineAnnealingWarmRestarts(optimizer, T_0=sched_params['cosine_T_0'],
-                                                   T_mult=sched_params['cosine_T_mult'])
+    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_lambda)
+    scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
     schedulers = {'warmup': scheduler_warmup, 'cosine': scheduler_cosine}
 
     # Start training
