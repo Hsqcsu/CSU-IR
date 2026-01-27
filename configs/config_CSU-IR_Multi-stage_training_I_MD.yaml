@@ -36,8 +36,6 @@ optimizer_params:
 
 scheduler_params:
   warmup_epochs: 10
-  cosine_T_0: 10
-  cosine_T_mult: 2
 
 model_save_params:
   num_best_models: 5
