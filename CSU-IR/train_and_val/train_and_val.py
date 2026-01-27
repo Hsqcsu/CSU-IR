@@ -49,7 +49,7 @@ train_smiles_path = 'QM9S_DFT_train_smiles.txt'
 train_ir_path = 'QM9S_DFT_train_ir.pt'
 val_smiles_path = 'QM9S_DFT_val_smiles.txt'
 val_ir_path = 'QM9S_DFT_val_ir.pt'
-test_smiles_path = QM9S_DFT_test_smiles.txt'
+test_smiles_path = 'QM9S_DFT_test_smiles.txt'
 test_ir_path = 'QM9S_DFT_test_ir.pt'
 
 smiles_train, ir_train = load_smiles_ir(train_smiles_path, train_ir_path)
