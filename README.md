@@ -57,7 +57,7 @@ conda activate CSU-IR
 
 ```bash
 cd CSU-IR
-pip install -r requirements_local.txt
+pip install -r requirements/requirements_local.txt
 ```
 
 ### 2. Data & Checkpoints Download
