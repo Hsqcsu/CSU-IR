@@ -1,5 +1,5 @@
-#  python -m pretrain_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_MD.yaml
-#  python -m pretrain_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_DFT.yaml
+#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_MD.yaml
+#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_pretrain_DFT.yaml
 import sys
 import os
 import yaml 
