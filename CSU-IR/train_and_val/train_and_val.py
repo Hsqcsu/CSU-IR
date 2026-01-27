@@ -50,7 +50,7 @@ SmilesModel = SmilesModel(roberta_model_path=None,
     feature_dim=768,
 )
 
-# You need to download the corresponding data in huggingface and put it in the corresponding folder
+# You need to download the training data in huggingface and put it in the corresponding folder. Here we use the DFT data as an example.
 train_smiles_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_train_smiles.txt'
 train_ir_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_train_ir.pt'
 val_smiles_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_val_smiles.txt'
@@ -275,7 +275,7 @@ def validate_model(smiles_model, ir_model, val_loader, device='cuda'):
 
         correct_matches = 0
         total_samples = result_smiles.size(0)
-        batch_size = 100  # 设置一个合适的批处理大小
+        batch_size = 100 
 
         for i in range(0, total_samples, batch_size):
             end = min(i + batch_size, total_samples)
