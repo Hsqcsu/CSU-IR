@@ -7,14 +7,12 @@ sys.path.insert(0, PROJECT_ROOT)
 # If there is a red underline below, don't worry, it will not affect the code running
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
-from SmilesEnumerator import augment_smiles
-from SmilesEnumerator import SmilesEnumerator
 from tqdm import tqdm
 import torch
 from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR 
 from torch.cuda.amp import autocast, GradScaler
 import json
 
@@ -28,16 +26,12 @@ def load_smiles_ir(smiles_path, ir_path):
 
 
 def lr_lambda(epoch):
-    if epoch < 10:
-        return epoch / 10
-    else:
-        return 1
+    if epoch < warmup_epochs:
+        return float(epoch + 1) / float(warmup_epochs)
+    return 1.0
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-sme = SmilesEnumerator()
-
 
 TOKENIZER_PATH = os.path.join(PROJECT_ROOT, "model", "tokenizer-smiles-roberta-1e_new")
 
@@ -51,12 +45,12 @@ SmilesModel = SmilesModel(roberta_model_path=None,
 )
 
 # You need to download the training data in huggingface and put it in the corresponding folder. Here we use the DFT data as an example.
-train_smiles_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_train_smiles.txt'
-train_ir_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_train_ir.pt'
-val_smiles_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_val_smiles.txt'
-val_ir_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_val_ir.pt'
-test_smiles_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_test_smiles.txt'
-test_ir_path = r'D:\Spectrum\github\CSU-IR\data\pretrain_data\Density functional simulation data\QM9S_DFT_test_ir.pt'
+train_smiles_path = 'QM9S_DFT_train_smiles.txt'
+train_ir_path = 'QM9S_DFT_train_ir.pt'
+val_smiles_path = 'QM9S_DFT_val_smiles.txt'
+val_ir_path = 'QM9S_DFT_val_ir.pt'
+test_smiles_path = QM9S_DFT_test_smiles.txt'
+test_ir_path = 'QM9S_DFT_test_ir.pt'
 
 smiles_train, ir_train = load_smiles_ir(train_smiles_path, train_ir_path)
 smiles_val, ir_val = load_smiles_ir(val_smiles_path, val_ir_path)
@@ -97,7 +91,7 @@ print(f"IR_model Parameter: {count_parameters(IR_model)}")
 optimizer = AdamW(list(SmilesModel.parameters()) + list(IR_model.parameters()), lr=5e-05, weight_decay=0.0001)
 
 scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_lambda)
-scheduler_cosine = CosineAnnealingWarmRestarts(optimizer, T_0=10, T_mult=2)
+scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
 scaler = GradScaler()
 
 def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num_epochs=80, device='cuda'):
@@ -175,7 +169,7 @@ def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num
         if epoch < 10:
             scheduler_warmup.step()
         else:
-            scheduler_cosine.step(epoch - 10)
+            scheduler_cosine.step()
 
         # Save top 5 best models
         if len(best_ratios) < 5:
