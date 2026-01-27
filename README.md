@@ -95,15 +95,13 @@ Scripts for testing and inference are available in their respective project fold
 
 - **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
 
-> **✨ Use Your Own Library!**  
-> To perform retrieval against your own custom library, please refer to this script:  
-> [`single_test_in_user_defined_library.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/test_and_infer/single_test_in_user_defined_library.py)
-
+> **✨ Use custom Libraries!**  
+> To perform retrieval against your own custom library, you can make it in our web server.
 ---
 
 ## 🌐 Web Service
 
-We have developed an open-access retrieval platform for PS retrieval or general compound retrieval in small libraries.
+We have developed an open-access retrieval platform for PS retrieval or general compound retrieval in small libraries or custom libraries.
 
 **[➡️ Try the Live Demo Here!](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)**
 
