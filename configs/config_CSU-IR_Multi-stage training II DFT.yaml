@@ -5,12 +5,12 @@ paths:
   tokenizer: model/tokenizer-smiles-roberta-1e_new
   ir_model_check_point: check_points/local_pretrained_MD/best_ir_model.pth
   smiles_model_check_point: check_points/local_pretrained_MD/best_smiles_model.pth
-  train_smiles: data/pretrain_data/Density functional simulation data/QM9S_DFT_train_smiles.txt
-  train_ir: data/pretrain_data/Density functional simulation data/QM9S_DFT_train_ir.pt
-  val_smiles: data/pretrain_data/Density functional simulation data/QM9S_DFT_val_smiles.txt
-  val_ir: data/pretrain_data/Density functional simulation data/QM9S_DFT_val_ir.pt
-  test_smiles: data/pretrain_data/Density functional simulation data/QM9S_DFT_test_smiles.txt
-  test_ir: data/pretrain_data/Density functional simulation data/QM9S_DFT_test_ir.pt
+  train_smiles: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_val_smiles.txt
+  val_ir: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_test_ir.pt
 
 model_params:
   smiles_model:
