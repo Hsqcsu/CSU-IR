@@ -66,9 +66,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
 ]
 
-unknown_data_to_test = ["ir_path": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','example_unknown_ir.jdx'),
-             "MW_path": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','example_unknown_MW.jdx'),
-             "Formula_path": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','example_unknown_formula.jdx'),
+unknown_data_to_test = ["ir_path": os.path.join(PROJECT_ROOT,'data','unknown_data','100-Million-library-Retrieval','example_unknown_ir.jdx'),
+             "MW_path": os.path.join(PROJECT_ROOT,'data','unknown_data','100-Million-library-Retrieval','example_unknown_MW.jdx'),
+             "Formula_path": os.path.join(PROJECT_ROOT,'data','unknown_data','100-Million-library-Retrieval','example_unknown_formula.jdx'),
 ]
 
 
