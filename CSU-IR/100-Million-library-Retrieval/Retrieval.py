@@ -141,13 +141,124 @@ def process_ir(ir_spectra_file, spectrum_type):
     with torch.no_grad():
         ir_feature = ModelInferenc.ir_encode(ir_spectra_tensor)
     return ir_feature
+
+unknown_ir_feature = process_ir(unknown_data_to_test[0],spectrum_type='absorbance spectrum')
     
 def load_MW_Formula(path):
     with open(path, 'r') as f:
         MW_or_Formula = f.read().splitlines()
     return MW_or_Formula
 
+unknown_MW = load_MW_Formula(unknown_data_to_test[1])
+unknown_Formula = load_MW_Formula(unknown_data_to_test[2])
+
+# IR Only functions
+class CombinedLibrary_IR_only:
+    def __init__(self, library_configs):
+        self.mmap_list = []
+        self.smiles_list = []
+        self.formulas_list = []
+        self.cumulative_sizes = [0]
+
+        total_count = 0
+        for config in library_configs:
+            print(f"Loading metadata for {config['name']}...")
+            with open(config['smiles'], 'r', encoding='utf-8') as f:
+                smi = f.read().splitlines()
+            with open(config['formulas'], 'r', encoding='utf-8') as f:
+                form = f.read().splitlines()
+            count = len(smi)
+            mmap = np.memmap(config['dat'], dtype='float16', mode='r', shape=(count, FEATURE_DIM))
+            self.mmap_list.append(mmap)
+            self.smiles_list.extend(smi)
+            self.formulas_list.extend(form)
+            total_count += count
+            self.cumulative_sizes.append(total_count)
+        self.total_count = total_count
+        print(f"Total Combined Library Size: {self.total_count:,}")
+
+    def get_features_chunk(self, start_idx, end_idx):
+        chunks = []
+        for i in range(len(self.mmap_list)):
+            part_start = self.cumulative_sizes[i]
+            part_end = self.cumulative_sizes[i + 1]
+            overlap_start = max(start_idx, part_start)
+            overlap_end = min(end_idx, part_end)
+            if overlap_start < overlap_end:
+                local_start = overlap_start - part_start
+                local_end = overlap_end - part_start
+                chunks.append(self.mmap_list[i][local_start:local_end])
+
+        return np.concatenate(chunks, axis=0) if chunks else np.array([])
 
 
+def IR_only_retrieval_unknown_ir_100M(lib_manager, unknown_ir_feature, top_k=100):
+    q_feats = unknown_ir_feature.to(device).to(torch.float32)
+    if q_feats.dim() == 1:
+        q_feats = q_feats.unsqueeze(0)
+    q_feats = F.normalize(q_feats, p=2, dim=1)
+    
+    num_queries = q_feats.shape[0]
+    total_lib_size = lib_manager.total_count
+    library_chunk_size = 500000 
 
+    global_best_scores = torch.full((num_queries, top_k), -float('inf'), device=device)
+    global_best_indices = torch.zeros((num_queries, top_k), dtype=torch.long, device=device)
+
+    for k in tqdm(range(0, total_lib_size, library_chunk_size), desc="Streaming Search"):
+        end_k = min(k + library_chunk_size, total_lib_size)
+
+        lib_chunk_np = lib_manager.get_features_chunk(k, end_k)
+        lib_chunk = torch.from_numpy(lib_chunk_np.astype(np.float32)).to(device)
+        lib_chunk = F.normalize(lib_chunk, p=2, dim=1)
+
+        chunk_sims = torch.matmul(q_feats, lib_chunk.t())
+
+
+        # [num_queries, top_k + ChunkSize]
+        combined_scores = torch.cat([global_best_scores, chunk_sims], dim=1)
+        
+
+        chunk_indices = torch.arange(k, end_k, device=device).expand(num_queries, -1)
+        combined_indices = torch.cat([global_best_indices, chunk_indices], dim=1)
+
+
+        global_best_scores, topk_rel_indices = torch.topk(combined_scores, k=top_k, dim=1)
+        global_best_indices = torch.gather(combined_indices, 1, topk_rel_indices)
+
+        del lib_chunk, chunk_sims, combined_scores, combined_indices
+        # torch.cuda.empty_cache() # 如果显存非常紧张可以开启
+
+    final_scores = global_best_scores.cpu().numpy()
+    final_indices = global_best_indices.cpu().numpy()
+    
+    all_search_results = []
+    
+    for i in range(num_queries):
+        query_results = []
+        for rank in range(top_k):
+            idx = int(final_indices[i][rank])
+            score = float(final_scores[i][rank])
+            
+            query_results.append({
+                "rank": rank + 1,
+                "smiles": lib_manager.smiles_list[idx],
+                "formula": lib_manager.formulas_list[idx],
+                "similarity": score
+            })
+        all_search_results.append(query_results)
+
+    return all_search_results
+
+
+# IR Only Retrieval
+
+lib_manager_IR_only = CombinedLibrary(lib_configs)
+top100_candidates = IR_only_retrieval_unknown_ir_100M(lib_manager_IR_only, unknown_ir_feature, top_k=100)
+
+for cand in top100_candidates[0][:5]:
+    print(f"Rank {cand['rank']}: Score: {cand['similarity']:.4f}, SMILES: {cand['smiles']}, Formula: {cand['formula']}")
+
+with open('IR_Only_top100_results.json', 'w') as f:
+     json.dump(top100_candidates, f)
 
