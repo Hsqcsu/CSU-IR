@@ -1,5 +1,3 @@
-#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_I_MD.yaml
-#  python -m local/Multi-staged_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
 import sys
 import os
 import yaml 
@@ -29,7 +27,7 @@ def load_smiles_ir(smiles_path, ir_path):
     ir = torch.load(ir_path)
     return smiles, ir
     
-def lr_lambda(epoch,warmup_epochs):
+def get_lr_multiplier(epoch, warmup_epochs):
     if epoch < warmup_epochs:
         return float(epoch + 1) / float(warmup_epochs)
     return 1.0
@@ -104,15 +102,17 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
     output_dir = config['paths']['output_dir']
     num_epochs = config['training_params']['num_epochs']
     warmup_epochs = config['scheduler_params']['warmup_epochs']
-    num_best_models = config['model_save_params']['num_best_models']
 
-    lr_scheduler = lr_lambda(num_epochs, warmup_epochs)
-    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_scheduler)
+    best_val_ratio = -1.0
+
+    best_smiles_path = os.path.join(output_dir, 'best_smiles_model.pth')
+    best_ir_path = os.path.join(output_dir, 'best_ir_model.pth')
+
+    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lambda epoch: get_lr_multiplier(epoch, warmup_epochs))
     scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
 
     os.makedirs(output_dir, exist_ok=True)
 
-    best_models_tracker = []  # List of tuples (ratio, epoch, smiles_path, ir_path)
     training_losses, validation_losses = [], []
 
     for epoch in range(num_epochs):
@@ -152,42 +152,31 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
         epoch_loss = running_loss / len(train_loader)
         training_losses.append(epoch_loss)
 
-        val_loss, top_1_ratio = validate_model(smiles_model, ir_model, val_loader, device, sme)
+        val_loss, top_1_ratio = validate_model(smiles_model, ir_model, val_loader, device)
         validation_losses.append(val_loss)
 
         print(
             f'Epoch {epoch + 1}/{num_epochs}, Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}, Top-1 Ratio: {top_1_ratio:.4f}')
 
         # Update learning rate
-        if epoch < 10:
+        if epoch < warmup_epochs:
             scheduler_warmup.step()
         else:
             scheduler_cosine.step()
 
-        # Save top N best models
-        current_model_info = (top_1_ratio, epoch + 1, None, None)
-        if len(best_models_tracker) < num_best_models:
-            best_models_tracker.append(current_model_info)
-        elif top_1_ratio > min(best_models_tracker, key=lambda x: x[0])[0]:
-            worst_model_info = min(best_models_tracker, key=lambda x: x[0])
-            if worst_model_info[2] and os.path.exists(worst_model_info[2]): os.remove(worst_model_info[2])
-            if worst_model_info[3] and os.path.exists(worst_model_info[3]): os.remove(worst_model_info[3])
-            best_models_tracker.remove(worst_model_info)
-            best_models_tracker.append(current_model_info)
-
-        # Save the current state of best models to disk
-        for i, (ratio, ep, _, _) in enumerate(best_models_tracker):
-            if ep == epoch + 1:  # Only save if it's the current epoch's model
-                smiles_path = os.path.join(output_dir, f'smiles_model_epoch_{ep}_ratio_{ratio:.4f}.pth')
-                ir_path = os.path.join(output_dir, f'ir_model_epoch_{ep}_ratio_{ratio:.4f}.pth')
-                torch.save(smiles_model.state_dict(), smiles_path)
-                torch.save(ir_model.state_dict(), ir_path)
-                best_models_tracker[i] = (ratio, ep, smiles_path, ir_path)
+        # Save top 1 best models
+        if top_1_ratio > best_val_ratio:
+            best_val_ratio = top_1_ratio
+            torch.save(smiles_model.state_dict(), best_smiles_path)
+            torch.save(ir_model.state_dict(), best_ir_path)
+            print(f"  [New Best] Epoch {epoch + 1}: Top-1 Ratio Upgraded to {best_val_ratio:.4f}. The model has been overwritten and saved.")
+        else:
+            print(f"  Epoch {epoch + 1}: Top-1 Ratio {top_1_ratio:.4f} Not exceeding the best ({best_val_ratio:.4f}), Skip saving.")
 
     print('\nTraining complete.')
-    print('Best validation models saved:')
-    for ratio, epoch, smiles_path, _ in sorted(best_models_tracker, key=lambda x: x[0], reverse=True):
-        print(f"  - Epoch {epoch}: Top-1 Ratio = {ratio:.4f}, Path: {smiles_path}")
+    print(f'Final Best Top-1 Ratio: {best_val_ratio:.4f}')
+    print(f'Best models saved to:\n  - {best_smiles_path}\n  - {best_ir_path}')
+
 
     # Save loss data
     loss_data = {'training_losses': training_losses, 'validation_losses': validation_losses}
@@ -267,7 +256,6 @@ def main():
     val_dataset = IRSmilesDataset(ir_val, smiles_val)
 
     dl_params = config['dataloader_params']
-    pin_memory = torch.cuda.is_available()
     train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False)
 
