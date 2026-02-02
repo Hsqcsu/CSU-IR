@@ -76,10 +76,16 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
 ]
 
+# [User Operation Area]
+# If you want to enter the values ​​directly at runtime, please fill in the variables below. If you leave None or "", the text file will be read automatically.
+
+RUNTIME_MW = None       # For example: 180 or "180"
+RUNTIME_FORMULA = None  # For example: "C9H8O4"
+
 # unknown_data
 unknown_data_to_test = {"ir_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_ir.jdx'),
-"MW_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_MW.jdx'),
-"Formula_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_formula.jdx'),}
+"MW_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_MW.txt'),
+"Formula_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_formula.txt'),}
 
 
 # model
@@ -144,16 +150,30 @@ def process_ir(ir_spectra_file, spectrum_type):
 
 unknown_ir_feature = process_ir(unknown_data_to_test["ir_path"],spectrum_type='absorbance spectrum')
     
+
+
+
+# Auxiliary functions
 def load_MW_Formula(path):
     with open(path, 'r') as f:
         MW_or_Formula = f.read().splitlines()
     return MW_or_Formula
-
-unknown_MW = load_MW_Formula(unknown_data_to_test["MW_path"])
-unknown_Formula = load_MW_Formula(unknown_data_to_test["Formula_path"])
-
-# Auxiliary functions
-
+    
+def get_final_query_metadata(runtime_val, file_path):
+    if runtime_val is not None and str(runtime_val).strip() != "":
+        print(f"Using manually provided input: {runtime_val}")
+        return str(runtime_val).strip()
+    if os.path.exists(file_path):
+        try:
+            with open(file_path, 'r') as f:
+                lines = f.read().splitlines()
+                if lines and lines[0].strip() != "":
+                    print(f"Using input from file ({file_path}): {lines[0]}")
+                    return lines[0].strip()
+        except Exception as e:
+            print(f"Error reading file {file_path}: {e}")
+    return None
+    
 class UnifiedCombinedLibrary:
     """
     Unified library management class: Supports streaming reading and fast indexing based on molecular formula/molecular weight.
@@ -296,20 +316,19 @@ def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k
         })
     return results
 
+
 # Retrieval
-
-
 lib_manager = UnifiedCombinedLibrary(unified_configs)
 
 u_ir = unknown_ir_feature 
-u_mw = unknown_MW[0] if unknown_MW else None
-u_formula = unknown_Formula[0] if unknown_Formula else None
+final_mw = get_final_query_metadata(RUNTIME_MW, unknown_data_to_test["MW_path"])
+final_formula = get_final_query_metadata(RUNTIME_FORMULA, unknown_data_to_test["Formula_path"])
 
 top100_results = unified_retrieval_100M(
     lib_manager, 
-    ir_feature=u_ir, 
-    mw=u_mw, 
-    formula=u_formula, 
+    ir_feature=unknown_ir_feature, 
+    mw=final_mw, 
+    formula=final_formula, 
     top_k=100
 )
 
