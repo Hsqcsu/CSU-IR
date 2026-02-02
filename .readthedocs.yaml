@@ -24,4 +24,5 @@ sphinx:
 
 python:
   install:
-    - requirements: requirements_for_doc.txt
+    - requirements: requirement/requirements_for_doc.txt
+
