@@ -29,7 +29,7 @@ def load_smiles_ir(smiles_path, ir_path):
     ir = torch.load(ir_path)
     return smiles, ir
     
-def lr_lambda(epoch):
+def lr_lambda(epoch,warmup_epochs):
     if epoch < warmup_epochs:
         return float(epoch + 1) / float(warmup_epochs)
     return 1.0
@@ -106,7 +106,8 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
     warmup_epochs = config['scheduler_params']['warmup_epochs']
     num_best_models = config['model_save_params']['num_best_models']
 
-    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_lambda)
+    lr_scheduler = lr_lambda(num_epochs, warmup_epochs)
+    scheduler_warmup = LambdaLR(optimizer, lr_lambda=lr_scheduler)
     scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
 
     os.makedirs(output_dir, exist_ok=True)
