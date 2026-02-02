@@ -47,81 +47,6 @@ from test_and_infer.infer import get_feature_from_smiles
 FEATURE_DIM = 1024
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-100_Million_Scale_libray = [
-    {
-        "dat_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_sub1.dat'),
-        "formulas_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_formulas_part_I_sub1.txt'),
-        "smiles_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_smiles_part_I_sub1.txt')
-    },
-    {
-        "dat_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_sub2.dat'),
-        "formulas_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_formulas_part_I_sub2.txt'),
-        "smiles_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_smiles_part_I_sub2.txt')
-    },
-    {
-        "dat_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_sub1.dat'),
-        "formulas_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_formulas_part_II_sub1.txt'),
-        "smiles_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_smiles_part_II_sub1.txt')
-    },
-    {
-        "dat_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_sub2.dat'),
-        "formulas_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_formulas_part_II_sub2.txt'),
-        "smiles_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_smiles_part_II_sub2.txt')
-    },
-    {
-        "dat_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_sub1.dat'),
-        "formulas_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_formulas_part_III_sub1.txt'),
-        "smiles_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_smiles_part_III_sub1.txt')
-    },
-    {
-        "dat_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_sub2.dat'),
-        "formulas_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_formulas_part_III_sub2.txt'),
-        "smiles_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_smiles_part_III_sub2.txt')
-    },
-    
-]
-
-# [User Operation Area]
-# If you want to enter the values ​​directly at runtime, please fill in the variables below. If you leave None or "", the text file will be read automatically.
-
-RUNTIME_MW = None       # For example: 180 or "180"
-RUNTIME_FORMULA = None  # For example: "C9H8O4"
-
-# unknown_data
-unknown_data_to_test = {"ir_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_ir.jdx'),
-"MW_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_MW.txt'),
-"Formula_path": os.path.join(PROJECT_ROOT, 'data', 'unknown_data', '100-Million-library-Retrieval','example_unknown_formula.txt'),}
-
-
-# model
-'''
-You need to download the model weight file in hugging_face and save it in the check_points folder.
-'''
-TOKENIZER_PATH = os.path.join(PROJECT_ROOT,'model',"tokenizer-smiles-roberta-1e_new")
-PRETRAIN_SMILES_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_smiles_model_0.9230379746835443.pth")
-PRETRAIN_IR_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_ir_model_0.9230379746835443.pth")
-
-IR_model = IRModel()
-SmilesModel = SmilesModel(roberta_model_path=None,
-    roberta_tokenizer_path= TOKENIZER_PATH,
-    smiles_maxlen=300,
-    max_position_embeddings=505,
-    vocab_size=181,
-    feature_dim=768,
-)
-
-IR_model.to(device)
-SmilesModel.to(device)
-
-ModelInferenc = ModelInference(
-        SmilesModel,
-        IR_model,
-        pretrain_model_path_sm= PRETRAIN_SMILES_MODEL_PATH,
-        pretrain_model_path_ir= PRETRAIN_IR_MODEL_PATH,
-        device=None
-    )
-
-# process unknown ir
 def process_ir(ir_spectra_file, spectrum_type):
     if hasattr(ir_spectra_file, 'name'):
         file_path = ir_spectra_file.name
@@ -153,32 +78,125 @@ def process_ir(ir_spectra_file, spectrum_type):
         ir_feature = ModelInferenc.ir_encode(ir_spectra_tensor)
     return ir_feature
 
-unknown_ir_feature = process_ir(unknown_data_to_test["ir_path"],spectrum_type='absorbance spectrum')
+class 100M_IR_Retrieval_Engine:
+    def __init__(self):
+        print(f"Initializing Retrieval Engine on {device}...")
+        self.tokenizer_path = os.path.join(PROJECT_ROOT,'model',"tokenizer-smiles-roberta-1e_new")
+        self.pretrain_smiles_path = os.path.join(PROJECT_ROOT, "check_points", "best_smiles_model_0.9230379746835443.pth")
+        self.pretrain_ir_path = os.path.join(PROJECT_ROOT, "check_points", "best_ir_model_0.9230379746835443.pth")
+        
+        ir_model = IRModel().to(device)
+        sm_model = SmilesModel(
+            roberta_model_path=None,
+            roberta_tokenizer_path=self.tokenizer_path,
+            smiles_maxlen=300,
+            max_position_embeddings=505,
+            vocab_size=181,
+            feature_dim=768,
+        ).to(device)
+
+        self.model_infer = ModelInference(
+            sm_model, ir_model,
+            pretrain_model_path_sm=self.pretrain_smiles_path,
+            pretrain_model_path_ir=self.pretrain_ir_path,
+            device=device
+        )
+        self.lib_configs = [
+        {
+        "dat_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_sub1.dat'),
+        "formulas_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_formulas_part_I_sub1.txt'),
+        "smiles_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_smiles_part_I_sub1.txt')
+        },
+        {
+        "dat_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_sub2.dat'),
+        "formulas_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_formulas_part_I_sub2.txt'),
+        "smiles_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_smiles_part_I_sub2.txt')
+        },
+        {
+        "dat_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_sub1.dat'),
+        "formulas_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_formulas_part_II_sub1.txt'),
+        "smiles_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_smiles_part_II_sub1.txt')
+        },
+        {
+        "dat_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_sub2.dat'),
+        "formulas_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_formulas_part_II_sub2.txt'),
+        "smiles_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_smiles_part_II_sub2.txt')
+        },
+        {
+        "dat_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_sub1.dat'),
+        "formulas_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_formulas_part_III_sub1.txt'),
+        "smiles_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_smiles_part_III_sub1.txt')
+        },
+        {
+        "dat_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_sub2.dat'),
+        "formulas_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_formulas_part_III_sub2.txt'),
+        "smiles_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_smiles_part_III_sub2.txt')
+        },]
+
+        self.lib_manager = UnifiedCombinedLibrary(self.lib_configs)
+
+    def search(self, ir_file, mw, formula, spectrum_type, top_k):
+        try:
+            ir_feature = process_ir(ir_file.name, spectrum_type) 
+            results = unified_retrieval_100M(
+                self.lib_manager, 
+                ir_feature=ir_feature, 
+                mw=mw if mw else None, 
+                formula=formula if formula else None, 
+                top_k=top_k
+            )
+            
+            if not results:
+                return "No candidates found.", None
+            df = pd.DataFrame(results)
+            df = df[['rank', 'similarity', 'formula', 'smiles']]
+            df['similarity'] = df['similarity'].map(lambda x: f"{x:.4f}")
+            return f"Search completed! Found top-{len(df)} candidates.", df
+        
+        except Exception as e:
+            return f"Error: {str(e)}", None
+
+# --- Gradio UI 构建 ---
+
+engine = IRSearchEngine()
+
+def ui_wrapper(ir_file, mw, formula, spectrum_type, top_k):
+    if ir_file is None:
+        return "Please upload an IR spectrum file (.jdx or .csv)", None
+    return engine.search(ir_file, mw, formula, spectrum_type, int(top_k))
+
+with gr.Blocks(title="100M-Scale IR Spectroscopy Retrieval System") as demo:
+    gr.Markdown("# 🧪 100M-Scale IR Spectroscopy Retrieval")
+    gr.Markdown("Upload an IR spectrum and optional molecular information to search the 100-million compound library.")
     
+    with gr.Row():
+        with gr.Column(scale=1):
+            ir_file = gr.File(label="Upload IR Spectrum (.jdx, .csv)")
+            spec_type = gr.Radio(
+                choices=["absorbance spectrum", "transmittance spectrum"], 
+                value="absorbance spectrum", 
+                label="Spectrum Type"
+            )
+            mw_input = gr.Textbox(label="Molecular Weight (Optional)", placeholder="e.g. 180")
+            formula_input = gr.Textbox(label="Molecular Formula (Optional)", placeholder="e.g. C9H8O4")
+            top_k_slider = gr.Slider(minimum=10, maximum=100, value=50, step=10, label="Top-K Results")
+            search_btn = gr.Button("🚀 Start Retrieval", variant="primary")
+            
+        with gr.Column(scale=2):
+            status_output = gr.Textbox(label="Status")
+            result_table = gr.DataFrame(label="Candidate Hits (Top-K)")
 
+    search_btn.click(
+        fn=ui_wrapper,
+        inputs=[ir_file, mw_input, formula_input, spec_type, top_k_slider],
+        outputs=[status_output, result_table]
+    )
 
-# Retrieval
-lib_manager = UnifiedCombinedLibrary(unified_configs)
+    gr.Markdown("### 📝 Notes:\n- The system uses Formula > MW > IR Only logic.\n- Ensure the 200GB .dat files are in the specified local directory.")
 
-u_ir = unknown_ir_feature 
-final_mw = get_final_query_metadata(RUNTIME_MW, unknown_data_to_test["MW_path"])
-final_formula = get_final_query_metadata(RUNTIME_FORMULA, unknown_data_to_test["Formula_path"])
+if __name__ == "__main__":
+    demo.launch(share=False) 
 
-top100_results = unified_retrieval_100M(
-    lib_manager, 
-    ir_feature=unknown_ir_feature, 
-    mw=final_mw, 
-    formula=final_formula, 
-    top_k=100
-)
-
-
-print(f"Retrieved {len(top100_results)} candidates.")
-for cand in top100_results[:5]:
-    print(f"Rank {cand['rank']}: {cand['similarity']:.4f} | {cand['formula']} | {cand['smiles']}")
-
-with open('Retrieval_Results.json', 'w') as f:
-    json.dump(top100_results, f)
 
 
 
