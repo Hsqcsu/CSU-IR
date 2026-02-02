@@ -134,7 +134,7 @@ Here is a summary of our model's performance benchmarks.
 ## 🌐 Local GUI of 100 million compounds retrieval
 
 For 100-Million-Scale retrieval，We have provided a GUI for local usage.
-Users need to download the processed 100-million-library-Retrieval library from huggingface and place it in the data/100-Million-library-Retrieval folder. Then, simply run [`Retrieval_GUI.py`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/100-Million-library-Retrieval/Retrieval_GUI.py) and click the link generated in the terminal to perform a 100-million-library retrieval.
+Users need to download the processed 100-million-library-Retrieval library from **[Hugging Face](https://huggingface.co/datasets/Hsqcsu/CSU-IR)** and place it in the data/100-Million-library-Retrieval folder. Then, simply run [`Retrieval_GUI.py`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/100-Million-library-Retrieval/Retrieval_GUI.py) and click the link generated in the terminal to perform a 100-million-library retrieval.
 
 The GUI includes:
 - **IR Only**: Search against the 100-Million library using IR spectral signals alone.
