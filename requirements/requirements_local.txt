@@ -16,7 +16,7 @@ scikit-learn
 rdkit
 PubChemPy
 jcamp
-transformers
+transformers<=4.43.4
 huggingface-hub
 tokenizers
 safetensors
