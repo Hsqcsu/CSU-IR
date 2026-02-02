@@ -9,7 +9,7 @@ torchvision==0.16.2
 torchaudio==2.1.2
 
 # ----------------- Other Dependencies -----------------
-numpy 
+numpy<2 
 pandas
 scipy
 scikit-learn
