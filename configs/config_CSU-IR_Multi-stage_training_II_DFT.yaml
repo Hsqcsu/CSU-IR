@@ -40,5 +40,5 @@ scheduler_params:
   warmup_epochs: 10
 
 model_save_params:
-  num_best_models: 5
+  num_best_models: 1
   loss_log_file: loss_data.json
