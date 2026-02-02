@@ -49,12 +49,12 @@ SmilesModel = SmilesModel(roberta_model_path=None,
 #IR_model.load_weights(os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_I_MD","best_ir_model_pth"))
 #SmilesModel.load_weights(os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_I_MD", "best_smiles_model_pth"))
 
-train_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_train_smiles.txt") 
-train_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_train_ir.pt") 
-val_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt") 
-val_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt") 
-test_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt") 
-test_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-stage_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt") 
+train_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_train_smiles.txt")
+train_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_train_ir.pt")
+val_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt")
+val_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt")
+test_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt")
+test_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt")
 
 smiles_train, ir_train = load_smiles_ir(train_smiles_path, train_ir_path)
 smiles_val, ir_val = load_smiles_ir(val_smiles_path, val_ir_path)
@@ -77,7 +77,7 @@ val_dataset = IRSmilesDataset(ir_val, smiles_val)
 test_dataset = IRSmilesDataset(ir_test, smiles_test)
 
 # DataLoader
-batch_size = 208
+batch_size = 128
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
@@ -106,8 +106,11 @@ def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num
     ir_model.to(device)
     best_ratios = []
     best_epochs = []
-    model_save_paths_smiles = []
-    model_save_paths_ir = []
+
+    output_dir = os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_II_DFT")
+    best_val_ratio = -1.0
+    best_smiles_path = os.path.join(output_dir, 'best_smiles_model.pth')
+    best_ir_path = os.path.join(output_dir, 'best_ir_model.pth')
 
     training_losses = []
     validation_losses = []
@@ -124,8 +127,7 @@ def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num
 
             current_smiles_batch = []
             for smiles in smiles_batch:
-                current_smiles_aug = augment_smiles(smiles,set(current_smiles_batch),sme)
-                current_smiles_batch.append(current_smiles_aug)
+                current_smiles_batch.append(smiles)
 
             tokenizer = smiles_model.smiles_tokenizer
             encoded_smiles = [tokenizer.encode_plus(
@@ -177,39 +179,20 @@ def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num
         else:
             scheduler_cosine.step()
 
-        # Save top 5 best models
-        if len(best_ratios) < 5:
-            model_save_path_smiles = f'best_smiles_model_epoch_{epoch + 1}_ratio_{top_1_ratio:.4f}.pth'
-            model_save_path_ir = f'best_ir_model_epoch_{epoch + 1}_ratio_{top_1_ratio:.4f}.pth'
-            torch.save(smiles_model.state_dict(), model_save_path_smiles)
-            torch.save(ir_model.state_dict(), model_save_path_ir)
+        # Save top 1 best models
+        if top_1_ratio > best_val_ratio:
+            best_val_ratio = top_1_ratio
+            torch.save(smiles_model.state_dict(), best_smiles_path)
+            torch.save(ir_model.state_dict(), best_ir_path)
+            print(
+                f"  [New Best] Epoch {epoch + 1}: Top-1 Ratio Upgraded to {best_val_ratio:.4f}. The model has been overwritten and saved.")
+        else:
+            print(
+                f"  Epoch {epoch + 1}: Top-1 Ratio {top_1_ratio:.4f} Not exceeding the best ({best_val_ratio:.4f}), Skip saving.")
 
-            best_ratios.append(top_1_ratio)
-            best_epochs.append(epoch)
-            model_save_paths_smiles.append(model_save_path_smiles)
-            model_save_paths_ir.append(model_save_path_ir)
-        elif len(best_ratios) == 5:
-            if top_1_ratio > min(best_ratios):
-                worst_index = best_ratios.index(min(best_ratios))
-                os.remove(model_save_paths_ir[worst_index])
-                os.remove(model_save_paths_smiles[worst_index])
-                best_ratios.pop(worst_index)
-                best_epochs.pop(worst_index)
-                model_save_paths_ir.pop(worst_index)
-                model_save_paths_smiles.pop(worst_index)
-
-                model_save_path_smiles = f'best_smiles_model_epoch_{epoch + 1}_ratio_{top_1_ratio:.4f}.pth'
-                model_save_path_ir = f'best_ir_model_epoch_{epoch + 1}_ratio_{top_1_ratio:.4f}.pth'
-                torch.save(smiles_model.state_dict(), model_save_path_smiles)
-                torch.save(ir_model.state_dict(), model_save_path_ir)
-
-                best_ratios.append(top_1_ratio)
-                best_epochs.append(epoch)
-                model_save_paths_smiles.append(model_save_path_smiles)
-                model_save_paths_ir.append(model_save_path_ir)
-
-    print('Training complete. Best validation ratios: ', best_ratios)
-    print('Best epochs: ', best_epochs)
+    print('\nTraining complete.')
+    print(f'Final Best Top-1 Ratio: {best_val_ratio:.4f}')
+    print(f'Best models saved to:\n  - {best_smiles_path}\n  - {best_ir_path}')
 
     loss_data = {
         'training_losses': training_losses,
@@ -233,8 +216,7 @@ def validate_model(smiles_model, ir_model, val_loader, device='cuda'):
 
             current_smiles_batch = []
             for smiles in smiles_batch:
-                current_smiles_aug = augment_smiles(smiles, set(current_smiles_batch), sme)
-                current_smiles_batch.append(current_smiles_aug)
+                current_smiles_batch.append(smiles)
 
             tokenizer = smiles_model.smiles_tokenizer
             encoded_smiles = [tokenizer.encode_plus(
