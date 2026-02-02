@@ -131,9 +131,9 @@ Here is a summary of our model's performance benchmarks.
 |           SMILES-Classifier           |   92.31%   |
 
 ---
-## 🌐 Local deployment of 100 million compounds retrieval
+## 🌐 Local GUI of 100 million compounds retrieval
 
-For 100-Million-Scale retrieval，We have provided detailed instructions for local installation and usage in the document below.
+For 100-Million-Scale retrieval，We have provided a GUI for local usage.
 
 **[➡️ Local deployment Here!](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)**
 
