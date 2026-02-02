@@ -76,13 +76,13 @@ You can initiate training scripts using a configuration file. All configs are lo
 #### Train CSU-IR in Stage-I with Molecular Dynamics (MD) data
 
 ```bash
-python -m local_training/Multi-stage_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_I_MD.yaml
+python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_I_MD.yaml
 ```
 
 #### Train CSU-IR in Stage-II with Density Functional Theory (DFT) data
 
 ```bash
-python -m local_training/Multi-stage_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
+python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
 ```
 
 > **Note on Stage-III Training:**  
