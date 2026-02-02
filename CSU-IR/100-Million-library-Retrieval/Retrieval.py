@@ -8,6 +8,7 @@ place the spectra (csv or jdx format), molecular weight, or molecular formula of
 '''
 
 import os
+import sys
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
@@ -19,6 +20,8 @@ from rdkit.Chem import rdMolDescriptors
 from collections import defaultdict
 import pandas as pd
 import jcamp
+import gradio as gr
+
 
 from Retrieval_functions import load_MW_Formula
 from Retrieval_functions import get_final_query_metadata
@@ -47,18 +50,14 @@ from test_and_infer.infer import get_feature_from_smiles
 FEATURE_DIM = 1024
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-def process_ir(ir_spectra_file, spectrum_type):
-    if hasattr(ir_spectra_file, 'name'):
-        file_path = ir_spectra_file.name
-    else:
-        file_path = ir_spectra_file
-    print(f"Processing file: {file_path}")
-    if file_path.lower().endswith('.csv'):
-        df = pd.read_csv(file_path)
+def process_ir(ir_file_path, spectrum_type, model_infer_instance):
+    print(f"Processing file: {ir_file_path}")
+    if ir_file_path.lower().endswith('.csv'):
+        df = pd.read_csv(ir_file_path)
         wavenumbers = df.iloc[:, 0].values
         transmittances = df.iloc[:, 1].values
-    elif file_path.lower().endswith('.jdx'):
-        data = jcamp.jcamp_readfile(file_path)
+    elif ir_file_path.lower().endswith('.jdx'):
+        data = jcamp.jcamp_readfile(ir_file_path)
         wavenumbers = np.array(data['x'], dtype=float)
         transmittances = np.array(data['y'], dtype=float)
     else:
@@ -73,12 +72,13 @@ def process_ir(ir_spectra_file, spectrum_type):
             ir_data = preprocess_transmittances_spectra_higer_500(wavenumbers, transmittances)
         else:
             ir_data = preprocess_transmittances_spectra_lower_500(wavenumbers, transmittances)
+            
     ir_spectra_tensor = torch.tensor(ir_data, dtype=torch.float32).unsqueeze(0).to(device)
     with torch.no_grad():
-        ir_feature = ModelInferenc.ir_encode(ir_spectra_tensor)
+        ir_feature = model_infer_instance.ir_encode(ir_spectra_tensor)
     return ir_feature
 
-class 100M_IR_Retrieval_Engine:
+class IR_Retrieval_Engine_100:
     def __init__(self):
         print(f"Initializing Retrieval Engine on {device}...")
         self.tokenizer_path = os.path.join(PROJECT_ROOT,'model',"tokenizer-smiles-roberta-1e_new")
@@ -102,42 +102,19 @@ class 100M_IR_Retrieval_Engine:
             device=device
         )
         self.lib_configs = [
-        {
-        "dat_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_sub1.dat'),
-        "formulas_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_formulas_part_I_sub1.txt'),
-        "smiles_sub1": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_smiles_part_I_sub1.txt')
-        },
-        {
-        "dat_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_sub2.dat'),
-        "formulas_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_formulas_part_I_sub2.txt'),
-        "smiles_sub2": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_I_smiles_part_I_sub2.txt')
-        },
-        {
-        "dat_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_sub1.dat'),
-        "formulas_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_formulas_part_II_sub1.txt'),
-        "smiles_sub3": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_smiles_part_II_sub1.txt')
-        },
-        {
-        "dat_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_sub2.dat'),
-        "formulas_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_formulas_part_II_sub2.txt'),
-        "smiles_sub4": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_II_smiles_part_II_sub2.txt')
-        },
-        {
-        "dat_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_sub1.dat'),
-        "formulas_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_formulas_part_III_sub1.txt'),
-        "smiles_sub5": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_smiles_part_III_sub1.txt')
-        },
-        {
-        "dat_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_sub2.dat'),
-        "formulas_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_formulas_part_III_sub2.txt'),
-        "smiles_sub6": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval','global_pool_features_100M_1024dim_fp16_part_III_smiles_part_III_sub2.txt')
-        },]
+            {
+                "name": f"Sub-Library {i+1}",
+                "dat": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval', f'global_pool_features_100M_1024dim_fp16_part_{"I" if i<2 else ("II" if i<4 else "III")}_sub{(i%2)+1}.dat'),
+                "formulas": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval', f'global_pool_features_100M_1024dim_fp16_part_{"I" if i<2 else ("II" if i<4 else "III")}_formulas_part_{"I" if i<2 else ("II" if i<4 else "III")}_sub{(i%2)+1}.txt'),
+                "smiles": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval', f'global_pool_features_100M_1024dim_fp16_part_{"I" if i<2 else ("II" if i<4 else "III")}_smiles_part_{"I" if i<2 else ("II" if i<4 else "III")}_sub{(i%2)+1}.txt')
+            } for i in range(6)
+        ]
 
         self.lib_manager = UnifiedCombinedLibrary(self.lib_configs)
 
     def search(self, ir_file, mw, formula, spectrum_type, top_k):
         try:
-            ir_feature = process_ir(ir_file.name, spectrum_type) 
+            ir_feature = process_ir(ir_file.name, spectrum_type, self.model_infer) 
             results = unified_retrieval_100M(
                 self.lib_manager, 
                 ir_feature=ir_feature, 
@@ -156,9 +133,8 @@ class 100M_IR_Retrieval_Engine:
         except Exception as e:
             return f"Error: {str(e)}", None
 
-# --- Gradio UI 构建 ---
 
-engine = IRSearchEngine()
+engine = IR_Retrieval_Engine_100M()
 
 def ui_wrapper(ir_file, mw, formula, spectrum_type, top_k):
     if ir_file is None:
