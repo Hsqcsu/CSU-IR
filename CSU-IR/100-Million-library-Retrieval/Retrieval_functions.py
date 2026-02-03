@@ -5,7 +5,8 @@ from tqdm import tqdm
 import numpy as np
 from collections import defaultdict
 
-
+FEATURE_DIM = 1024
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 def load_MW_Formula(path):
     with open(path, 'r') as f:
