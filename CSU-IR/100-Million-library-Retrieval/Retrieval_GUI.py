@@ -43,8 +43,8 @@ from data_process.ir_process import preprocess_absorbances_spectra_lower_500
 from data_process.ir_process import preprocess_transmittances_spectra_higer_500
 from data_process.ir_process import preprocess_transmittances_spectra_lower_500
 
-from test_and_infer.infer import ModelInference
-from test_and_infer.infer import get_feature_from_smiles
+from test_and_infer.test_and_infer_functions import ModelInference
+from test_and_infer.test_and_infer_functions import get_feature_from_smiles
 
 # 100_Million_Scale_libray
 FEATURE_DIM = 1024
