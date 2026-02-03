@@ -1,7 +1,10 @@
 # This is an example file using NPS retrieval against the derivative library. 
+import sys
+import os
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, PROJECT_ROOT)
+print(PROJECT_ROOT)
 
 import torch
 import pandas as pd
@@ -50,12 +53,12 @@ def load_smiles(smiles_path):
 
 '--------------------------------------------------------------------------------------------'
 
-Interference_library_path = os.path.join(PROJECT_ROOT,'data','precessed_library','PS','smiles_Derivative_PS.txt')
+Interference_library_path = os.path.join(PROJECT_ROOT,'data','processed_library','PS','smiles_Derivative_PS.txt')
 Interference_library = load_smiles(Interference_library_path)
 
 
-NPS_smiles_path = os.path.join(PROJECT_ROOT,'test_data','NPS','filtered_final_NPS_smiles.txt')
-NPS_ir_path =os.path.join(PROJECT_ROOT,'test_data','NPS','filtered_final_NPS_ir.pt')
+NPS_smiles_path = os.path.join(PROJECT_ROOT,'data','test_data','NPS','filtered_final_NPS_smiles.txt')
+NPS_ir_path =os.path.join(PROJECT_ROOT,'data','test_data','NPS','filtered_final_NPS_ir.pt')
 
 
 NPS_smiles, NPS_ir = load_data(NPS_smiles_path, NPS_ir_path)
@@ -81,67 +84,64 @@ IR_model.to(device)
 '--------------------------------------------------------------------------------------------'
 
 model_pairs = [
-    (os.path.join(PROJECT_ROOT,'data','check_points','Multi-stage_training_Stage_III_EXP','best_smiles_model_0.9230379746835443.pth'),
-    os.path.join(PROJECT_ROOT,'data','check_points','Multi-stage_training_Stage_III_EXP','best_ir_model_0.9230379746835443.pth')),
+    (os.path.join(PROJECT_ROOT,'check_points','Multi-stage_training_Stage_III_EXP','best_smiles_model_0.9230379746835443.pth'),
+    os.path.join(PROJECT_ROOT,'check_points','Multi-stage_training_Stage_III_EXP','best_ir_model_0.9230379746835443.pth')),
 ]
 
 
 def evaluate_loader(loader, combined_features, smiles_list, loader_name):
     top_1_matches = 0
-    top_2_matches = 0
-    top_3_matches = 0
-    top_4_matches = 0
     top_5_matches = 0
     top_10_matches = 0
     total_samples = 0
 
     results = []
 
+    normalized_library_smiles = [normalize_smiles(s) for s in smiles_list]
+
     test_loader_tqdm = tqdm(loader, unit="batch")
     for ir_spectra_batch, smiles_batch in test_loader_tqdm:
         ir_spectra_tensor = ir_spectra_batch.to(device)
-        #ir_spectra_tensor = ir_spectra_tensor[:, 150:]
+
         for idx, ir_spectra in enumerate(ir_spectra_tensor):
-            smiles = smiles_batch[idx]
-            original_smiles = normalize_smiles(smiles)
+            query_smiles = normalize_smiles(smiles_batch[idx])
             ir_feature = ModelInferenc.ir_encode(ir_spectra)
+
             indices, scores = get_topK_result(ir_feature, combined_features, 10)
-            top_smiles = []
-            for (sco, idx) in zip(scores, indices):
-                for ii, i in enumerate(idx):
-                    if i < len(smiles_list):
-                        top_smiles.append(smiles_list[i])
-            results.append((top_smiles, scores.tolist()))
+            top_indices = indices[0] if len(indices.shape) > 1 else indices
 
-            for ii, i in enumerate(indices[0]):  
-                if i < len(smiles_list) and original_smiles == normalize_smiles(smiles_list[i]):
-                    if ii == 0:
-                        top_1_matches += 1
-                    if ii < 2:
-                        top_2_matches += 1
-                    if ii < 3:
-                        top_3_matches += 1
-                    if ii < 4:
-                        top_4_matches += 1
-                    if ii < 5:
-                        top_5_matches += 1
-                    if ii < 10:
-                        top_10_matches += 1
+            found_at_rank = -1
+            current_top_smiles = []
 
+            for rank, i in enumerate(top_indices):
+                i = int(i)
+                if i < len(normalized_library_smiles):
+                    candidate_smiles = normalized_library_smiles[i]
+                    current_top_smiles.append(smiles_list[i])
+
+                    if found_at_rank == -1 and query_smiles == candidate_smiles:
+                        found_at_rank = rank
+
+            if found_at_rank != -1:
+                if found_at_rank < 1:
+                    top_1_matches += 1
+                if found_at_rank < 5:
+                    top_5_matches += 1
+                if found_at_rank < 10:
+                    top_10_matches += 1
+
+            results.append((current_top_smiles, scores.tolist()))
             total_samples += 1
-            print(total_samples)
 
     top_1_ratio = top_1_matches / total_samples if total_samples > 0 else 0
-    top_2_ratio = top_2_matches / total_samples if total_samples > 0 else 0
-    top_3_ratio = top_3_matches / total_samples if total_samples > 0 else 0
-    top_4_ratio = top_4_matches / total_samples if total_samples > 0 else 0
     top_5_ratio = top_5_matches / total_samples if total_samples > 0 else 0
     top_10_ratio = top_10_matches / total_samples if total_samples > 0 else 0
 
-    print(f"Results for {loader_name}:")
-    print("Recall@1 :", top_1_ratio)
-    print("Recall@5 :", top_5_ratio)
-    print("Recall@10 :", top_10_ratio)
+    print(f"\nResults for {loader_name}:")
+    print(f"Total Samples: {total_samples}")
+    print(f"Recall@1  : {top_1_ratio:.4f}")
+    print(f"Recall@5  : {top_5_ratio:.4f}")
+    print(f"Recall@10 : {top_10_ratio:.4f}")
 
     with open(f'{loader_name}_results.txt', 'w') as file:
         for top_smiles, scores in results:
@@ -163,7 +163,7 @@ for smiles_model_path, ir_model_path in model_pairs:
     NPS_smiles_features = get_feature_from_smiles(NPS_smiles,ModelInferenc)
     Derivative_PS_library = get_feature_from_smiles(Interference_library,ModelInferenc)
     library_Derivative_PS = torch.cat((NPS_smiles_features, Derivative_PS_library), dim=0)
-    smiles_Derivative_PS = list(NPS_smiles) + list(Derivative_drug_smiles_list)
+    smiles_Derivative_PS = list(NPS_smiles) + list(Interference_library)
     
     evaluate_loader(NPS_loader,library_Derivative_PS, smiles_Derivative_PS, 'NPS against derivative library')
 
