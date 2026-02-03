@@ -18,18 +18,20 @@ from data_process.ir_process import preprocess_absorbances_spectra_lower_500
 from data_process.ir_process import preprocess_transmittances_spectra_higer_500
 from data_process.ir_process import preprocess_transmittances_spectra_lower_500
 
-from test_and_infer.infer import ModelInference
-from test_and_infer.infer import get_feature_from_smiles
-from test_and_infer.infer import get_topK_result
-from test_and_infer.infer import draw_molecules
+from test_and_infer.test_and_infer_functions import ModelInference
+from test_and_infer.test_and_infer_functions import get_feature_from_smiles
+from test_and_infer.test_and_infer_functions import get_topK_result
+from test_and_infer.test_and_infer_functions import draw_molecules
 
 '''
 You need to download the model weight file in hugging_face and save it in the check_points folder.
+"library.txt" and  "Ethanol.jdx" already exsit.
+
 '''
 
 TOKENIZER_PATH = os.path.join(PROJECT_ROOT,'model',"tokenizer-smiles-roberta-1e_new")
-PRETRAIN_SMILES_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_smiles_model_0.9230379746835443.pth")
-PRETRAIN_IR_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "best_ir_model_0.9230379746835443.pth")
+PRETRAIN_SMILES_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points","Multi-stage_training_Stage_III_EXP", "best_smiles_model_0.9230379746835443.pth")
+PRETRAIN_IR_MODEL_PATH = os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_III_EXP","best_ir_model_0.9230379746835443.pth")
 LIBRARY_FILE_PATH = os.path.join(PROJECT_ROOT,'data', "example_library_and_ir_for_user_dinfined", "library.txt")
 EXAMPLE_IR_FILE_PATH = os.path.join(PROJECT_ROOT, 'data',"example_library_and_ir_for_user_dinfined", "Ethanol.jdx")
 OUTPUT_IMAGE_PATH = os.path.join(os.path.dirname(__file__), "retrieved_molecules.png")
@@ -129,4 +131,5 @@ if __name__ == "__main__":
     img, scores, top_smiles = retrieval(ir_spectra_file , spectrum_type="absorbance spectrum", your_library=your_library)
     if img:
         img.save(OUTPUT_IMAGE_PATH)
+        print('result img saved')
 
