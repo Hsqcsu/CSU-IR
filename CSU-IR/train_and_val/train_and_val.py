@@ -77,7 +77,7 @@ val_dataset = IRSmilesDataset(ir_val, smiles_val)
 test_dataset = IRSmilesDataset(ir_test, smiles_test)
 
 # DataLoader
-batch_size = 128
+batch_size = 208
 train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
 test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
