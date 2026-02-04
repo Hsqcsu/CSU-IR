@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from tqdm import tqdm
 import numpy as np
 from collections import defaultdict
+from sklearn.calibration import calibration_curve
 
 FEATURE_DIM = 1024
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -187,7 +188,7 @@ def load_confidence_mappings(path):
             print(f"Warning: Recall@{i} mapping missing in {path}.")
     return mappings
 
-def calculate_confidence(score, recall_k):
+def calculate_confidence(score, recall_k,CONFIDENCE_MAPPINGS):
     if recall_k not in CONFIDENCE_MAPPINGS:
         return 0.0
     prob_pred, prob_true = CONFIDENCE_MAPPINGS[recall_k]
