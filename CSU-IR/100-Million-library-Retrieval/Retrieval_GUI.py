@@ -54,23 +54,16 @@ CSS = """
 """
 
 def process_ir(ir_file_path, spectrum_type, model_infer_instance):
-    if ir_file_path.lower().endswith('.csv'):
+    if ir_file_path.lower().endswith('.csv') and spectrum_type == "transmittance spectrum":
         df = pd.read_csv(ir_file_path)
         wavenumbers, transmittances = df.iloc[:, 0].values, df.iloc[:, 1].values
-    elif ir_file_path.lower().endswith('.jdx'):
+        ir_data = preprocess_transmittances_spectra_higer_500(wavenumbers, transmittances) if wavenumbers[0] > 500 else preprocess_transmittances_spectra_lower_500(wavenumbers, transmittances)
+    elif ir_file_path.lower().endswith('.jdx') and spectrum_type == "absorbance spectrum":
         data = jcamp.jcamp_readfile(ir_file_path)
         wavenumbers, transmittances = np.array(data['x'], dtype=float), np.array(data['y'], dtype=float)
+        ir_data = preprocess_absorbances_spectra_higer_500(wavenumbers, transmittances) if wavenumbers[0] > 500 else preprocess_absorbances_spectra_lower_500(wavenumbers, transmittances)
     else:
         raise ValueError("Unsupported file format.")
-
-    if spectrum_type == "absorbance spectrum":
-        ir_data = preprocess_absorbances_spectra_higer_500(wavenumbers, transmittances) if wavenumbers[
-                                                                                               0] > 500 else preprocess_absorbances_spectra_lower_500(
-            wavenumbers, transmittances)
-    else:
-        ir_data = preprocess_transmittances_spectra_higer_500(wavenumbers, transmittances) if wavenumbers[
-                                                                                                  0] > 500 else preprocess_transmittances_spectra_lower_500(
-            wavenumbers, transmittances)
 
     ir_spectra_tensor = torch.tensor(ir_data, dtype=torch.float32).unsqueeze(0).to(device)
     with torch.no_grad():
