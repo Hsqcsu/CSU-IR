@@ -14,7 +14,7 @@ import numpy as np
 import pandas as pd
 import jcamp
 import gradio as gr
-from sklearn.calibration import calibration_curve  
+from sklearn.calibration import calibration_curve
 
 
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -119,7 +119,7 @@ class IR_Retrieval_Engine_100M:
                 mw=mw if mw else None,
                 formula=formula if formula else None,
                 top_k=top_k,
-                search_range=search_limit  
+                search_range=search_limit
             )
 
             if not results:
@@ -135,26 +135,21 @@ class IR_Retrieval_Engine_100M:
 
             conf_summary = (
                 f'<div style="background-color: #ffffff; color: #1a1a1a; padding: 20px; border-radius: 12px; border: 1px solid #ddd; text-align: center;">'
-                f'<h3 style="color: #00bfa5; margin-top: 0;">📊 Confidence Analysis</h3>'
+                f'<h3 style="color: #00bfa5; margin-top: 0; margin-bottom: 10px;">📊 Confidence Analysis</h3>'
+                f'<p style="font-size: 0.9em; color: #666; text-align: justify; line-height: 1.5; margin: 10px 0; padding: 0 10px;">'
+                f'Users need not worry: during confidence analysis, it is inevitable that a high confidence score may be given '
+                f'because the correct substance is not in the database and the model assigns a high score to similar substances. '
+                f'Our method has proven that the top-ranked candidates have a high similarity to the correct substance, and the retrieval rate '
+                f'of key substructures exceeds 90%. This is also of reference value.'
+                f'</p>'
+                f'<hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">'
                 f'<p style="font-size: 1.2em; margin: 10px 0;">There is a '
                 f'<span style="color:#008c7a; font-weight:bold; font-size: 1.3em;">{best_conf * 100:.2f}%</span> '
                 f'probability that the correct molecule is within '
                 f'<span style="font-weight:bold; color:#333;">Recall@1-{best_k}</span>.</p>'
                 f'<p style="font-size:0.9em; color:#666;">(Based on Similarity Score: {recall1_score:.4f})</p>'
-                
-
-                f'<hr style="border: 0; border-top: 1px solid #eee; margin: 15px 0;">'
-                f'<p style="font-size: 0.85em; color: #555; text-align: left; line-height: 1.5; margin-bottom: 0;">'
-                f'<b>💡 Notice:</b> Users need not worry: during confidence analysis, it is inevitable that a high confidence score may be given '
-                f'because the correct substance is not in the database and the model assigns a high score to similar substances. '
-                f'Our method has proven that the top-ranked candidates have a high similarity to the correct substance, and the retrieval rate '
-                f'of key substructures exceeds 90%. This is also of reference value.'
-                f'</p>'
-                # ------------------
-                
                 f'</div>'
             )
-
             df = df[['rank', 'similarity', 'formula', 'smiles']]
             df['similarity'] = df['similarity'].map(lambda x: f"{float(x):.4f}")
             return f"Search completed!", df, gr.update(value=conf_summary, visible=True)
