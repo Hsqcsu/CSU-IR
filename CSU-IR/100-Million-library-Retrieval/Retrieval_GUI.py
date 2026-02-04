@@ -129,7 +129,7 @@ class IR_Retrieval_Engine_100M:
             recall1_score = float(df.iloc[0]['similarity'])
             best_conf, best_k = -1.0, 1
             for k in range(1, 11):
-                current_conf = calculate_confidence(recall1_score, k)
+                current_conf = calculate_confidence(recall1_score, k,CONFIDENCE_MAPPINGS)
                 if current_conf > best_conf:
                     best_conf, best_k = current_conf, k
 
