@@ -63,7 +63,7 @@ def process_ir(ir_file_path, spectrum_type, model_infer_instance):
         wavenumbers, transmittances = np.array(data['x'], dtype=float), np.array(data['y'], dtype=float)
         ir_data = preprocess_absorbances_spectra_higer_500(wavenumbers, transmittances) if wavenumbers[0] > 500 else preprocess_absorbances_spectra_lower_500(wavenumbers, transmittances)
     else:
-        raise ValueError("Unsupported file format.")
+        raise ValueError("Unsupported file format or incorrect spectrum type.")
 
     ir_spectra_tensor = torch.tensor(ir_data, dtype=torch.float32).unsqueeze(0).to(device)
     with torch.no_grad():
