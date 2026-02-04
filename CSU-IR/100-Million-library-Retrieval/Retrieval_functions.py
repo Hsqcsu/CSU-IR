@@ -173,3 +173,27 @@ def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k
             "similarity": float(final_scores[rank])
         })
     return results
+
+def load_confidence_mappings(path):
+    mappings = {}
+    print("Loading Calibration Data...")
+    for i in range(1, 11):
+        file_path = os.path.join(path, f'top{i}_calib_data.pt')
+        if os.path.exists(file_path):
+            data = torch.load(file_path, map_location='cpu')
+            prob_true, prob_pred = calibration_curve(data['flags'], data['scores'], n_bins=10, strategy='quantile')
+            mappings[i] = (prob_pred, prob_true)
+        else:
+            print(f"Warning: Recall@{i} mapping missing in {path}.")
+    return mappings
+
+def calculate_confidence(score, recall_k):
+    if recall_k not in CONFIDENCE_MAPPINGS:
+        return 0.0
+    prob_pred, prob_true = CONFIDENCE_MAPPINGS[recall_k]
+    min_score, min_conf = prob_pred[0], prob_true[0]
+    if score < min_score:
+        conf = score * (min_conf / min_score) if min_score > 0 else 0.0
+    else:
+        conf = np.interp(score, prob_pred, prob_true)
+    return max(0.0, float(conf))
