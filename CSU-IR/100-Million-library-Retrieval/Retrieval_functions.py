@@ -99,15 +99,11 @@ class UnifiedCombinedLibrary:
             feats[i] = self.mmap_list[part_idx][local_idx]
         return feats
 
-def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k=100):
-    """
-    Unified Retrieval Interface
-    Logical Priority: Formula > MW > IR Only
-    """
+def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k=100, search_range=None):
     q_feat = ir_feature.to(device).to(torch.float32)
     if q_feat.dim() == 1: q_feat = q_feat.unsqueeze(0)
     q_feat = F.normalize(q_feat, p=2, dim=1)
-    
+
     candidate_indices = None
     mode = "IR-Only"
 
@@ -115,44 +111,52 @@ def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k
         target_f = str(formula).strip()
         candidate_indices = lib_manager.formula_to_indices.get(target_f, np.array([], dtype=np.int32))
         mode = "Formula-Filtered"
-    elif mw is not None:
+    elif mw is not None and str(mw).strip() != "":
         try:
             target_mw = int(float(mw))
             candidate_indices = lib_manager.mw_to_indices.get(target_mw, np.array([], dtype=np.int32))
             mode = "MW-Filtered"
-        except: pass
+        except:
+            pass
 
     print(f"Running search in [{mode}] mode...")
-    
+
     if mode in ["Formula-Filtered", "MW-Filtered"]:
         if len(candidate_indices) == 0:
             print(f"Warning: No candidates found for {mode} search.")
             return []
-        
-        subset_feats = torch.from_numpy(lib_manager.get_features_by_indices(candidate_indices).astype(np.float32)).to(device)
+
+        subset_feats = torch.from_numpy(lib_manager.get_features_by_indices(candidate_indices).astype(np.float32)).to(
+            device)
         subset_feats = F.normalize(subset_feats, p=2, dim=1)
         sims = torch.matmul(q_feat, subset_feats.t()).squeeze(0)
-        
+
         actual_k = min(top_k, len(sims))
         topk_scores, topk_rel_indices = torch.topk(sims, k=actual_k)
-        
+
         final_indices = candidate_indices[topk_rel_indices.cpu().numpy()]
         final_scores = topk_scores.cpu().numpy()
 
     else:
         total_lib_size = lib_manager.total_count
+        if search_range is not None:
+            total_lib_size = min(total_lib_size, int(search_range))
+            print(f"Restricting IR-only search to first {total_lib_size:,} samples.")
+
         chunk_size = 500000
         global_best_scores = torch.full((1, top_k), -float('inf'), device=device)
         global_best_indices = torch.zeros((1, top_k), dtype=torch.long, device=device)
-        for k in tqdm(range(0, total_lib_size, chunk_size), desc="Streaming 100M Library"):
+
+        for k in tqdm(range(0, total_lib_size, chunk_size), desc=f"Streaming {mode}"):
             end_k = min(k + chunk_size, total_lib_size)
             lib_chunk = torch.from_numpy(lib_manager.get_features_chunk(k, end_k).astype(np.float32)).to(device)
             lib_chunk = F.normalize(lib_chunk, p=2, dim=1)
             chunk_sims = torch.matmul(q_feat, lib_chunk.t())
+
             combined_scores = torch.cat([global_best_scores, chunk_sims], dim=1)
             chunk_indices = torch.arange(k, end_k, device=device).unsqueeze(0)
             combined_indices = torch.cat([global_best_indices, chunk_indices], dim=1)
-            
+
             global_best_scores, rel_idx = torch.topk(combined_scores, k=top_k, dim=1)
             global_best_indices = torch.gather(combined_indices, 1, rel_idx)
 
