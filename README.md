@@ -1,6 +1,6 @@
 # **CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval**
 
-[![Paper](https://img.shields.io/badge/Paper-arXiv-b31b1b.svg)](https://arxiv.org/abs/YOUR_ARXIV_ID)  [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/test_all_in_colab.ipynb)  [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Spaces-Demo-blue.svg)](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)
+[![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Spaces-Demo-blue.svg)](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)
 
 This is the official code repository for our paper, **"CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval"**.
 
