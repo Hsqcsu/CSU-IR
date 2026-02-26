@@ -11,7 +11,7 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🔬 **Strong Interpretability**: The learned representations are highly interpretable, revealing a direct mapping between spectral features and molecular features.
 *   🧩 **Comprehensive Functional Groups Detection**: The model successfully detected 83 functional groups with an average recall@1 of 95.46%.
 
-![Fig1](https://github.com/user-attachments/assets/163af346-e49d-494c-8889-fa1620fe0988)
+![Fig1](https://github.com/user-attachments/assets/da942395-4432-4f93-b9f9-a02e07894729)
 
 ## 🚀 Quick Start with Google Colab
 
