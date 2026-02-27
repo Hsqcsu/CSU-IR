@@ -1,4 +1,4 @@
-# This is an example file using NPS retrieval against the derivative library. 
+# This is an example file using NPS retrieval against the existing library. 
 import sys
 import os
 
@@ -24,8 +24,7 @@ from test_and_infer.test_and_infer_functions import get_feature_from_smiles
 from test_and_infer.test_and_infer_functions import get_topK_result
 from test_and_infer.test_and_infer_functions import normalize_smiles
 
-
-TOKENIZER_PATH = os.path.join(PROJECT_ROOT,'model',"tokenizer-smiles-roberta-1e_new")
+TOKENIZER_PATH = os.path.join(PROJECT_ROOT, 'model', "tokenizer-smiles-roberta-1e_new")
 
 
 class IRSmilesDataset(Dataset):
@@ -46,20 +45,20 @@ def load_data(smiles_path, ir_path):
     ir_data = torch.load(ir_path)
     return smiles_list, ir_data
 
+
 def load_smiles(smiles_path):
     with open(smiles_path, 'r') as f:
         smiles_list = f.read().splitlines()
     return smiles_list
 
+
 '--------------------------------------------------------------------------------------------'
 
-Interference_library_path = os.path.join(PROJECT_ROOT,'data','processed_library','PS','smiles_Derivative_PS.txt')
+Interference_library_path = os.path.join(PROJECT_ROOT, 'data', 'processed_library', 'PS', 'smiles_Existing_PS.txt')
 Interference_library = load_smiles(Interference_library_path)
 
-
-NPS_smiles_path = os.path.join(PROJECT_ROOT,'data','test_data','NPS','filtered_final_NPS_smiles.txt')
-NPS_ir_path =os.path.join(PROJECT_ROOT,'data','test_data','NPS','filtered_final_NPS_ir.pt')
-
+NPS_smiles_path = os.path.join(PROJECT_ROOT, 'data', 'test_data', 'NPS', 'filtered_final_NPS_smiles.txt')
+NPS_ir_path = os.path.join(PROJECT_ROOT, 'data', 'test_data', 'NPS', 'filtered_final_NPS_ir.pt')
 
 NPS_smiles, NPS_ir = load_data(NPS_smiles_path, NPS_ir_path)
 
@@ -67,16 +66,15 @@ NPS_dataset = IRSmilesDataset(NPS_ir, NPS_smiles)
 batch_size = 208
 NPS_loader = DataLoader(NPS_dataset, batch_size=batch_size, shuffle=False)
 
-
 '--------------------------------------------------------------------------------------------'
 IR_model = IRModel()
 SmilesModel = SmilesModel(roberta_model_path=None,
-    roberta_tokenizer_path= TOKENIZER_PATH ,
-    smiles_maxlen=300,
-    max_position_embeddings=505,
-    vocab_size=181,
-    feature_dim=768,
-)
+                          roberta_tokenizer_path=TOKENIZER_PATH,
+                          smiles_maxlen=300,
+                          max_position_embeddings=505,
+                          vocab_size=181,
+                          feature_dim=768,
+                          )
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 SmilesModel.to(device)
@@ -84,8 +82,10 @@ IR_model.to(device)
 '--------------------------------------------------------------------------------------------'
 
 model_pairs = [
-    (os.path.join(PROJECT_ROOT,'check_points','Multi-stage_training_Stage_III_EXP','best_smiles_model_0.9230379746835443.pth'),
-    os.path.join(PROJECT_ROOT,'check_points','Multi-stage_training_Stage_III_EXP','best_ir_model_0.9230379746835443.pth')),
+    (os.path.join(PROJECT_ROOT, 'check_points', 'Multi-stage_training_Stage_III_EXP',
+                  'best_smiles_model_0.9230379746835443.pth'),
+     os.path.join(PROJECT_ROOT, 'check_points', 'Multi-stage_training_Stage_III_EXP',
+                  'best_ir_model_0.9230379746835443.pth')),
 ]
 
 
@@ -160,12 +160,12 @@ for smiles_model_path, ir_model_path in model_pairs:
         device=None
     )
 
-    NPS_smiles_features = get_feature_from_smiles(NPS_smiles,ModelInferenc)
-    Derivative_PS_library = get_feature_from_smiles(Interference_library,ModelInferenc)
-    library_Derivative_PS = torch.cat((NPS_smiles_features, Derivative_PS_library), dim=0)
-    smiles_Derivative_PS = list(NPS_smiles) + list(Interference_library)
-    
-    evaluate_loader(NPS_loader,library_Derivative_PS, smiles_Derivative_PS, 'NPS against derivative library')
+    NPS_smiles_features = get_feature_from_smiles(NPS_smiles, ModelInferenc)
+    Existing_PS_library = get_feature_from_smiles(Interference_library, ModelInferenc)
+    library_Existing_PS = torch.cat((NPS_smiles_features, Existing_PS_library), dim=0)
+    smiles_Existing_PS = list(NPS_smiles) + list(Interference_library)
+
+    evaluate_loader(NPS_loader, library_Existing_PS, smiles_Existing_PS, 'NPS against Existing library')
 
 
 
