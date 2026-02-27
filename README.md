@@ -167,23 +167,6 @@ All experiments were conducted on a single NVIDIA GPU (RTX 4090). The full train
 - **Stage-II (DFT Data)**: ~3 hours
 - **Stage-III (ET Data)**: ~1 hours
 
-## 📜 Citation
-
-If you find our work useful in your research, please consider citing our paper:
-
-```bibtex
-@article{YourLastName2024CSUIR,
-  title   = {CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval},
-  author  = {First Author and Second Author and ...},
-  journal = {arXiv preprint arXiv:XXXX.XXXXX},
-  year    = {2025}
-}
-```
-
-## 🙏 Acknowledgements
-
-*(This space is reserved for any acknowledgements you wish to add, e.g., funding sources, computational resources, or helpful discussions.)*
-
 ## 📬 Contact
 
 We welcome any questions, suggestions, or collaboration opportunities. Please feel free to open an issue on GitHub or contact us via email.
