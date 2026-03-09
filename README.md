@@ -1,8 +1,8 @@
-# **CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval**
+# **Scaling infrared spectral retrieval to 100 million compounds with interpretable deep learning**
 
 [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Spaces-Demo-blue.svg)](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)
 
-This is the official code repository for our paper, **"CSU-IR: An Interpretable Deep Learning Framework for 100-Million-Scale Infrared Spectral Retrieval"**.
+This is the official code repository for our paper, **"Scaling infrared spectral retrieval to 100 million compounds with interpretable deep learning"**.
 
 We introduce **CSU-IR**, a novel deep learning framework designed for high-precision unknown-compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
 
