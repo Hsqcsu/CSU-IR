@@ -6,7 +6,7 @@ This is the official code repository for our paper, **"Scaling infrared spectral
 
 We introduce **CSU-IR**, a novel deep learning framework designed for high-precision unknown-compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
 
-*   🚀 **Exceptional 100-Million-Scale Performance**: Maintains high accuracy (Recall@1 of 68.13% and a Recall@10 of 93.97%) when retrieving against libraries containing 100 million compounds.
+*   🚀 **Exceptional 100-Million-Scale Library Retrieval Performance**: Maintains high accuracy (Recall@1 of 68.13% and a Recall@10 of 93.97%) when retrieving against libraries containing 100 million compounds.
 *   🎯 **Specialized for Psychoactive Substances Identification**: Purpose-built models and libraries for the accurate retrieval and SMILES classification of Psychoactive Substances.
 *   🔬 **Strong Interpretability**: The learned representations are highly interpretable, revealing a direct mapping between spectral features and molecular features.
 *   🧩 **Comprehensive Functional Groups Detection**: The model successfully detected 83 functional groups with an average recall@1 of 95.46%.
