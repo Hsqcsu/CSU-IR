@@ -140,24 +140,6 @@ The GUI includes:
 - **IR Only**: Search against the 100-Million library using IR spectral signals alone.
 - **IR + Molecular Weight**: Search against the 100-Million library using IR combined with molecular weight filtering.
 - **IR + Molecular Formula**: : Search against the 100-Million library using IR combined with molecular formula filtering.
-
-# 📊 Performance & Results
-
-Here is a summary of our model's performance in Large-Scale library retrieval.
-
-| IR Only  | Top-1 Accuracy | Top-10 Accuracy |
-| :-------------------------------: | :------------: | :-------------: |
-|          Library Size: 1M         |     0.5170     |     0.8110      |
-|          Library Size: 10M         |     0.3860     |     0.6940      |
-|          Library Size: 100M         |     0.1600     |     0.4380      |
-
-| IR + Molecular Weight  | Top-1 Accuracy | Top-10 Accuracy |
-| :-------------------------------: | :------------: | :-------------: |
-|          Library Size: 100M         |     0.6110     |     0.8700     |
-
-| IR + Molecular Formula  | Top-1 Accuracy | Top-10 Accuracy |
-| :-------------------------------: | :------------: | :-------------: |
-|          Library Size: 100M         |     0.6813     |     0.9397      |
 ---
 
 ## 📦 Hardware Requirements
