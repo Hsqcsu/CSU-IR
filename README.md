@@ -110,26 +110,6 @@ The demo includes:
 - **General Retrieval**: Search against the NIST library (~1W).
 - **PS Retrieval**: Specialized search against psychoactive substance libraries.
 - **PS-SMILES-Classifier**: Classify substances using SMILES strings.
-
-The performance and reliability of these tools are backed by extensive benchmarking. You can review the detailed results in the section below.
-
-# 📊 Performance & Results
-
-Here is a summary of our model's performance benchmarks.
-
-| General Retrieval  | Top-1 Accuracy | Top-10 Accuracy |
-| :-------------------------------: | :------------: | :-------------: |
-|         Library Size: 1W          |     0.8000     |     0.9440     |
-
-| NPS Retrieval                      | Top-1 Accuracy | Top-10 Accuracy |
-| :------------------------------------------------: | :------------: | :-------------: |
-|                 Existed PS Library                 |     0.7692     |     1.0000      |
-| Derivative PS Library|     0.5000     |     0.9688      |
-
-| PS-Classifier Accuracy (NPS Set) |  Accuracy  |
-| :-----------------------------------: | :--------: |
-|           SMILES-Classifier           |   92.31%   |
-
 ---
 ## 🌐 Local GUI of 100 million compounds retrieval
 
