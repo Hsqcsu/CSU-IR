@@ -127,7 +127,7 @@ The GUI includes:
 All experiments were conducted on a single NVIDIA GPU (RTX 4090). The full training pipeline for CSU-IR requires approximately **37 hours**:
 - **Stage-I (MD Data)**: ~33 hours
 - **Stage-II (DFT Data)**: ~3 hours
-- **Stage-III (ET Data)**: ~1 hours
+- **Stage-III (EXP Data)**: ~1 hours
 
 ## 📬 Contact
 
