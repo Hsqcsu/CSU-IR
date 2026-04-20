@@ -84,15 +84,26 @@ class IR_Retrieval_Engine_100M:
         self.model_infer = ModelInference(sm_model, ir_model, pretrain_model_path_sm=self.pretrain_smiles_path,
                                           pretrain_model_path_ir=self.pretrain_ir_path, device=device)
 
-        self.lib_configs = [
-            {
-                "name": f"Sub-Library {i+1}",
-                "dat": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval', f'global_pool_features_100M_1024dim_fp16_part_{"I" if i<2 else ("II" if i<4 else "III")}_sub{(i%2)+1}.dat'),
-                "formulas": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval', f'global_pool_features_100M_1024dim_fp16_part_{"I" if i<2 else ("II" if i<4 else "III")}_formulas_part_{"I" if i<2 else ("II" if i<4 else "III")}_sub{(i%2)+1}.txt'),
-                "smiles": os.path.join(PROJECT_ROOT,'data','100-Million-library-Retrieval', f'global_pool_features_100M_1024dim_fp16_part_{"I" if i<2 else ("II" if i<4 else "III")}_smiles_part_{"I" if i<2 else ("II" if i<4 else "III")}_sub{(i%2)+1}.txt')
-            } for i in range(6)
-        ]
+        
+        self.lib_configs = []
+        parts = ["I", "II", "III"]
+        base_dir = os.path.join(PROJECT_ROOT, 'data', '100-Million-library-Retrieval')
+        
+        for p_name in parts:
+            part_folder = os.path.join(base_dir, f'Part_{p_name}')
+            
+            for sub_i in range(1, 19): 
+                config = {
+                    "name": f"Part_{p_name}-Sub{sub_i}",
+                    "dat": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_sub{sub_i}.dat'),
+                    "formulas": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_formulas_part_{p_name}_sub{sub_i}.txt'),
+                    "smiles": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_smiles_part_{p_name}_sub{sub_i}.txt')
+                }
+                self.lib_configs.append(config)
+    
         self.lib_manager = UnifiedCombinedLibrary(self.lib_configs)
+
+    
 
     def search(self, ir_file, mw, formula, spectrum_type, top_k, search_range):
         try:
