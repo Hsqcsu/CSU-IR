@@ -228,7 +228,6 @@ with gr.Blocks(title="100-Million-Scale IR Retrieval System") as demo:
 if __name__ == "__main__":
     demo.launch(
         share=False,
-        #css=CSS,
         allowed_paths=[EXAMPLE_DIR, Confidence_DIR]
     )
 
