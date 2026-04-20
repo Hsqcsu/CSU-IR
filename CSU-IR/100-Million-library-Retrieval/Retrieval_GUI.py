@@ -97,7 +97,8 @@ class IR_Retrieval_Engine_100M:
                     "name": f"Part_{p_name}-Sub{sub_i}",
                     "dat": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_sub{sub_i}.dat'),
                     "formulas": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_formulas_part_{p_name}_sub{sub_i}.txt'),
-                    "smiles": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_smiles_part_{p_name}_sub{sub_i}.txt')
+                    "smiles": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_smiles_part_{p_name}_sub{sub_i}.txt'),
+                    "mw": os.path.join(part_folder,f'global_pool_features_100M_1024dim_fp16_part_{p_name}_mw_part_{p_name}_sub{sub_i}.txt')
                 }
                 self.lib_configs.append(config)
     
