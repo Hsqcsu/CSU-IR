@@ -176,7 +176,7 @@ with gr.Blocks(title="100-Million-Scale IR Retrieval System") as demo:
 
     gr.Markdown("""
     ### 📝 Notes:
-    - The system uses **Formula > MW > IR Only** logic.
+    - For optimal performance, the system selects methods in this order of preference: Formula-based, then MW-based, and finally IR-only.
     - When using only infrared signals, the retrieval scope can be selected. When using the entire 100 million library, the retrieval time can take several minutes.
     - ！！！ Users need not worry: during confidence analysis, it is inevitable that a high confidence score may be given because the correct substance is not in the database and the model assigns a high score to similar substances. Our method has proven that the top-ranked candidates have a high similarity to the correct substance, and the retrieval rate of key substructures exceeds 90%. This is also of reference value.
     - If MW or molecular formula information is added, the entire library will be used for retrieval (with high accuracy, eliminating the need to further narrow down the library).
