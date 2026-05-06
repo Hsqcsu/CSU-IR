@@ -31,7 +31,7 @@ dataloader_params:
   num_workers: 0
 
 optimizer_params:
-  learning_rate: 5.0e-5  # YAML handles scientific notation well
+  learning_rate: 5.0e-5  
   weight_decay: 1.0e-4
 
 scheduler_params:
