@@ -3,7 +3,7 @@ This script includes three functions for retrieving the 100-Million-Scale libray
 ---infrared spectroscopy only;
 ---infrared spectroscopy plus molecular weight;
 ---and infrared spectroscopy plus molecular formula.
-Before using this script, please download the 00-Million-Scale data to the corresponding folder.
+Before using this script, please download the 100-Million-Scale data to the corresponding folder.
 place the spectra (csv or jdx format), molecular weight, or molecular formula of the unknown substance to be searched in the specified location.
 '''
 
