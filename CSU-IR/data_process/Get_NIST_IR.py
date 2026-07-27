@@ -10,12 +10,9 @@ from urllib3.util.retry import Retry
 import urllib3
 from tqdm import tqdm
 
-# 禁用 SSL 警告
+
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-# ==================== 路径与全局配置 ====================
-
-# 1. 读入源文件夹（脱敏未填补的 PKL 文件，保持只读，绝不修改）
 INPUT_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\processed_data\optimization\exp\0_1_2_4_5_6_9_10_11_spiltted_and_augmented_data_absortion_resource_delete_NIST_IR"
 
 # 2. 输出目标文件夹（所有爬取的 JDX 缓存、新填补的 PKL 文件和失败记录统统保存至此）
