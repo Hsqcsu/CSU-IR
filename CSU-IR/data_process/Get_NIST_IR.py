@@ -18,31 +18,26 @@ from tqdm import tqdm
 
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
-INPUT_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\processed_data\optimization\exp\0_1_2_4_5_6_9_10_11_spiltted_and_augmented_data_absortion_resource_delete_NIST_IR"
+INPUT_DIR = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Experimental_Benching_data")
 
-# 2. 输出目标文件夹（所有爬取的 JDX 缓存、新填补的 PKL 文件和失败记录统统保存至此）
-OUTPUT_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\processed_data\optimization\exp\0_1_2_4_5_6_9_10_11_12_spiltted_and_augmented_data_absortion_resource_new_get_NIST_IR"
+OUTPUT_DIR = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Experimental_Benching_data","Complete_EB")
 
-# 原始 JDX 文件本地缓存目录 (存入输出文件夹)
+
+
 RAW_JDX_CACHE_DIR = os.path.join(OUTPUT_DIR, "cached_jdx_files")
-# 缺失日志文件路径 (存入输出文件夹)
 FAILED_LOG_PATH = os.path.join(OUTPUT_DIR, "failed_nist_ids.txt")
 
 PKL_FILES = ["eb_train.pkl", "eb_val.pkl", "eb_test.pkl"]
 
-REQUEST_INTERVAL = 0.8  # 爬取间隔(秒)
-TIMEOUT = (10, 25)      # 超时配置
-MAX_RETRIES = 3         # 网络重试次数
+REQUEST_INTERVAL = 0.8
+TIMEOUT = (10, 25)
+MAX_RETRIES = 3
 
-# 自动创建输出文件夹和 JDX 缓存文件夹
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(RAW_JDX_CACHE_DIR, exist_ok=True)
 
 
-# ==================== 模块 1: 网络爬虫模块 ====================
-
 def create_robust_session():
-    """创建带有自动重试和长连接机制的 Session"""
     session = requests.Session()
     retries = Retry(
         total=MAX_RETRIES,
@@ -64,8 +59,6 @@ http_session = create_robust_session()
 
 
 def download_nist_jdx_by_id(nist_id, save_path):
-    """根据 NIST ID 下载 JDX 源文件"""
-    # 策略 1: 直连 JCAMP 接口
     direct_url = f"https://webbook.nist.gov/cgi/cbook.cgi?JCAMP={nist_id}&Type=IR"
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -75,13 +68,12 @@ def download_nist_jdx_by_id(nist_id, save_path):
                 if "##TITLE=" in text and ("##JCAMP-DX=" in text or "##DATA TYPE=" in text):
                     with open(save_path, 'w', encoding='utf-8', errors='ignore') as f:
                         f.write(text)
-                    return True, "直连下载成功"
+                    return True, "Direct download successful"
         except Exception:
             if attempt < MAX_RETRIES:
                 time.sleep(2 * attempt)
                 continue
 
-    # 策略 2: 解析 HTML 页面下载
     page_url = f"https://webbook.nist.gov/cgi/cbook.cgi?ID={nist_id}&Units=SI&Type=IR"
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -95,21 +87,18 @@ def download_nist_jdx_by_id(nist_id, save_path):
                     if jdx_resp.status_code == 200 and "##TITLE=" in jdx_resp.text:
                         with open(save_path, 'w', encoding='utf-8', errors='ignore') as f:
                             f.write(jdx_resp.text)
-                        return True, "HTML解析下载成功"
+                        return True, "HTML parsing and download successful"
                 elif "No spectrum available" in html:
-                    return False, "NIST 官方无数字化数据"
+                    return False, "No digital data available from NIST"
         except Exception:
             if attempt < MAX_RETRIES:
                 time.sleep(2 * attempt)
                 continue
 
-    return False, "下载超时或未找到"
+    return False, "Download timed out or not found."
 
-
-# ==================== 模块 2: JDX 解析与 IR 预处理模块 ====================
 
 def parse_jdx_spectra(file_path):
-    """解析 JDX 文件中的 XY 原始光谱数据并识别单位"""
     x_raw, y_raw = [], []
     xunits = "WAVENUMBERS"
     xfactor, yfactor = 1.0, 1.0
@@ -156,18 +145,17 @@ def parse_jdx_spectra(file_path):
 
 
 def process_ir_data(x, y):
-    """光谱预处理核心逻辑：截取和三次样条插值到 3500 点"""
     min_x, max_x = x[0], x[-1]
     start, end = max(min_x, 500.0), min(max_x, 4000.0)
 
     if start >= end:
-        raise ValueError("光谱波数范围无重叠。")
+        raise ValueError("There is no overlap in the spectral wavenumber ranges.")
 
     mask = (x >= start) & (x <= end)
     x_crop, y_crop = x[mask], y[mask]
 
     if len(x_crop) < 4:
-        raise ValueError("有效点数过少。")
+        raise ValueError("Too few valid points.")
 
     start_int, end_int = int(np.ceil(start)), int(np.floor(end))
     x_temp = np.arange(start_int, end_int + 1, 1.0)
@@ -193,7 +181,6 @@ def process_ir_data(x, y):
 
 
 def convert_to_absorbance_single(y_data):
-    """转换为吸光度格式，并保持 0-1 归一化"""
     spec = np.array(y_data, dtype=np.float64)
 
     min_val, max_val = np.min(spec), np.max(spec)
@@ -212,7 +199,6 @@ def convert_to_absorbance_single(y_data):
 
 
 def convert_jdx_to_processed_ir(jdx_file_path):
-    """一站式将 JDX 文件转为 3500 点吸光度数组"""
     x_raw, y_raw, xunits = parse_jdx_spectra(jdx_file_path)
     if not x_raw or not y_raw:
         return None
@@ -230,11 +216,9 @@ def convert_jdx_to_processed_ir(jdx_file_path):
     return convert_to_absorbance_single(processed_y)
 
 
-# ==================== 模块 3: 主一键式自动补全重构逻辑 ====================
-
 def main():
     print("=" * 70)
-    print("      EB 数据集自动爬取与一键重构补全工具 (Auto Reconstitution)")
+    print("      EB Auto Reconstitution")
     print("=" * 70)
 
     failed_nist_ids = set()
@@ -243,15 +227,14 @@ def main():
         input_pkl_path = os.path.join(INPUT_DIR, pkl_filename)
         output_pkl_path = os.path.join(OUTPUT_DIR, pkl_filename)
 
-        # 检查逻辑：如果输出文件夹中已有处理一半的进度文件，则读取进度文件续传；否则读取输入源文件
         if os.path.exists(output_pkl_path):
             read_path = output_pkl_path
-            print(f"\n正在读取已有输出进度文件 (续传模式): {read_path} ...")
+            print(f"\nReading existing output progress file (resume mode): {read_path} ...")
         elif os.path.exists(input_pkl_path):
             read_path = input_pkl_path
-            print(f"\n正在读取脱敏源文件 (原文件只读): {read_path} ...")
+            print(f"\nReading de-identified source file (original file is read-only): {read_path} ...")
         else:
-            print(f"⚠️ 跳过未找到的文件: {pkl_filename}")
+            print(f"⚠️ Skip files not found: {pkl_filename}")
             continue
 
         with open(read_path, 'rb') as f:
@@ -267,45 +250,33 @@ def main():
         skipped_public_data = 0
         failed_cnt = 0
 
-        # 内存字典，缓存本次运行中已处理过的 NIST ID 避免重复插值
         processed_ir_cache = {}
 
-        for i in tqdm(range(total_num), desc=f"检查并补全 {pkl_filename}"):
+        for i in tqdm(range(total_num), desc=f"Check and complete {pkl_filename}"):
             nist_id = nist_id_list[i]
             current_ir = ir_list[i]
 
-            # 检查条件 1: 如果是公开数据 (SDBS/ENFSI/SWGDRUG)，IR 本身不为 None，跳过
             if nist_id is None:
                 skipped_public_data += 1
                 continue
-
-            # 检查条件 2: 检查式逻辑 (Inspection-based)
-            # 如果是 NIST 数据，但 IR 已经被填补（不为 None），直接跳过！
             if current_ir is not None:
                 skipped_already_filled += 1
                 continue
 
-            # --- 下面处理 IR 为 None 的 NIST 数据 ---
-
-            # A. 检查内存 Cache
             if nist_id in processed_ir_cache:
                 ir_list[i] = processed_ir_cache[nist_id]
                 updated_cnt += 1
                 continue
 
-            # B. 检查本地磁盘 JDX Cache (存入 OUTPUT_DIR/cached_jdx_files)
             jdx_path = os.path.join(RAW_JDX_CACHE_DIR, f"{nist_id}.jdx")
 
             if not os.path.exists(jdx_path) or os.path.getsize(jdx_path) < 200:
-                # 本地无缓存，发网络请求下载
                 success, msg = download_nist_jdx_by_id(nist_id, jdx_path)
                 time.sleep(REQUEST_INTERVAL)
                 if not success:
                     failed_cnt += 1
                     failed_nist_ids.add(nist_id)
                     continue
-
-            # C. 将 JDX 本地文件解析预处理为 3500 点光谱
             try:
                 processed_spec = convert_jdx_to_processed_ir(jdx_path)
                 if processed_spec is not None:
@@ -319,28 +290,26 @@ def main():
                 failed_cnt += 1
                 failed_nist_ids.add(nist_id)
 
-        # 保存更新后的 PKL 文件至输出文件夹 OUTPUT_DIR
         data_dict["IR"] = ir_list
         with open(output_pkl_path, 'wb') as f:
             pickle.dump(data_dict, f, protocol=pickle.HIGHEST_PROTOCOL)
 
-        print(f"[{pkl_filename}] 重构完成统计:")
-        print(f"  - 新文件保存位置: {output_pkl_path}")
-        print(f"  - 总条目数: {total_num}")
-        print(f"  - 公开数据 (无须爬取): {skipped_public_data} 条")
-        print(f"  - 检查识别为已处理 (自动跳过): {skipped_already_filled} 条")
-        print(f"  - 本次新爬取并填补: {updated_cnt} 条")
-        print(f"  - 爬取失败/数据缺失: {failed_cnt} 条")
+        print(f"[{pkl_filename}] Refactoring Completion Statistics:")
+        print(f"  - New file save location: {output_pkl_path}")
+        print(f"  - Total number of entries: {total_num}")
+        print(f"  - Data requiring no processing: {skipped_public_data} items")
+        print(f"  - Check and mark as processed (automatically skipped): {skipped_already_filled} items")
+        print(f"  - Newly added this time: {updated_cnt} items")
+        print(f"  - Failure/Missing Data: {failed_cnt} items")
 
-    # 失败记录保存至输出文件夹 OUTPUT_DIR
     if failed_nist_ids:
         with open(FAILED_LOG_PATH, 'a', encoding='utf-8') as f:
             for fid in failed_nist_ids:
                 f.write(f"{fid}\n")
 
     print("\n" + "=" * 70)
-    print("🎉 自动化重构与填补完全成功！原文件未做任何修改。")
-    print(f"全部爬取数据与重构 PKL 文件已安全存入:\n{OUTPUT_DIR}")
+    print("🎉 Automated reconstruction and filling completed successfully! No modifications were made to the original file.")
+    print(f"Reconstructed PKL files have been securely stored.:\n{OUTPUT_DIR}")
     print("=" * 70)
 
 
