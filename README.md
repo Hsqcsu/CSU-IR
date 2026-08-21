@@ -64,16 +64,20 @@ pip install -r requirements/requirements_local.txt
 
 The complete dataset with identical splits can be fully reproduced locally. Please follow the steps.
 
-**Step 1** Download the EB dataset (including the smiles txt file, compound ids txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**.
+**Step 1:** Download the EB dataset (including the smiles txt file, compound ids txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**.
 
-**Step 2** Put all the downloaded files into our filefolder[`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val).
+**Step 2:** Put all the downloaded files into our filefolder[`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val).
 
-**Step 3** Run the data_reconstruction script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). 
+**Step 3:** Run the data_reconstruction script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). 
 
 **Notes Important！！！** 
+
 >The whole construction will take ~8 hours，brief hangs are expected during the process.
->The EB_CHONF, E2S，and PS subset can be constructed from our script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). 
+
+>The EB_CHONF, E2S，and PS subset can be constructed from our script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val).
+
 >These scripts are provided solely for provenance tracking and reproducibility. Users remain responsible for complying with the NIST Chemistry WebBook (SRD 69) terms of use, institutional policies, and relevant legal requirements.
+
 >Such generated files are not covered by the license of our repository. This repository does not grant permission to redistribute, publish, mirror, sublicense, or commercially reuse generated WebBook-derived data files.
 
 #### 2.2 EB-TF dataset Construction (Optional)
