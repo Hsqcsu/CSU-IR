@@ -74,7 +74,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 >The whole construction will take ~8 hours，brief hangs are expected during the process.
 
->The EB_CHONF, E2S，and PS subset can be constructed from our script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val).
+>The EB_CHONF and PS subset can be constructed from our script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). The experimental part of E2S subset can be obtained from our script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). The DFT part of E2S need download from **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**.
 
 >These scripts are provided solely for provenance tracking and reproducibility. Users remain responsible for complying with the NIST Chemistry WebBook (SRD 69) terms of use, institutional policies, and relevant legal requirements.
 
