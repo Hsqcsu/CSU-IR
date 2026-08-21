@@ -11,7 +11,7 @@ We introduce **CSU-IR**, a novel deep learning framework designed for high-preci
 *   🔬 **Multi-perspective Interpretability**: CSU-IR achieves accurate and trustworthy spectral retrieval by grounding its predictions in interpretable chemical property and specific spectral-structural correspondence.
 *   🧩 **Comprehensive Functional Groups Detection**: The model successfully detected 48 functional groups with an average recall@1 of 93.80%.
 
-![Uploading 大图版本7_20260821.jpg…]()
+<img width="4575" height="3950" alt="Fig1_github" src="https://github.com/user-attachments/assets/b8e2f632-3a61-4840-aecb-c7bbe9200f06" />
 
 ## 🚀 Quick Start with Google Colab
 
@@ -63,8 +63,11 @@ pip install -r requirements/requirements_local.txt
 #### 2.1 EB dataset Construction
 
 The complete dataset with identical splits can be fully reproduced locally. Please follow the steps.
+
 **Step 1** Download the EB dataset (including the smiles txt file, compound ids txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**.
+
 **Step 2** Put all the downloaded files into our filefolder[`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val).
+
 **Step 3** Run the data_reconstruction script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). 
 
 **Notes Important！！！** 
