@@ -90,10 +90,12 @@ The other data used in our study (For example, the multi-stage pretraining data)
 
 ### 3. Training
 
-You can initiate training scripts using a configuration file. All configs are located in the configs/ directory.
+You can initiate training scripts using a configuration file. All configs are located in the configs/ directory. The training config for SOTA comparison is also privided.
 
 > Ensure you are in the project's root directory and your environment is activated.
+> 
 > Put the corresponding training data into the corresponding folder according to the config file.
+> 
 > It is strongly recommended to run this script in an IDE terminal (like PyCharm's) instead of the standard system terminal to avoid potential environment-related issues.
 
 #### Train CSU-IR in Stage-I with Molecular Dynamics (MD) data.
