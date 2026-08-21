@@ -1,13 +1,14 @@
 """NIST IR Two-Stage High-Performance Reconstruction & Consistency Verification Script
 
-架构说明：
-【阶段 1: 全量纯下载】
-  - 请求间隔 1.0 秒，严格 10 秒硬超时熔断。
-  - 自动扫描缺失 JDX，多轮断点捡漏，直至当前子集全部 JDX 100% 下载完成。
-【阶段 2: 本地离线高速批处理】
-  - 脱离网络，批量执行样条插值与吸光度转换，填充 Tensor 并保存至 data_reconstructioned。
-【阶段 3: 一致性终验】
-  - 全量逐行比对 SMILES 与 IR 光谱数值。
+Architecture Overview:
+[Stage 1: Full Batch Pure Download]
+  - 1.0s request interval with strict timeout protection.
+  - Automatically scans for missing JDX files with multi-round resume-on-break capability until 100% downloaded.
+[Stage 2: Local Offline High-Speed Batch Processing]
+  - Operates completely offline: performs cubic spline interpolation, absorbance conversion, and tensor assembly.
+  - Saves final outputs into the designated reconstruction directory.
+[Stage 3: End-to-End Consistency Verification]
+  - Compares line-by-line SMILES and numerical IR spectral values against ground-truth benchmark datasets.
 """
 
 import os
@@ -22,7 +23,7 @@ import torch
 from tqdm import tqdm
 from urllib3.exceptions import InsecureRequestWarning
 
-# ================= 1. 网络与连接池配置 =================
+# ================= 1. Network & Connection Pool Configuration =================
 USE_PROXY = False
 
 if not USE_PROXY:
@@ -59,25 +60,25 @@ def create_persistent_session():
 
 GLOBAL_SESSION = create_persistent_session()
 
-# ================= 2. 路径配置 =================
-# A. 输入：包含 None IR 以及已复制的 annotated 标签文件的待填充数据集目录
+# ================= 2. Path Configuration =================
+# A. Input: Directory containing datasets with None IR and copied annotated label files
 INPUT_NO_NIST_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_reconstrction\data_without_NIST_IR_new_sample_ids_file"
 
-# B. JDX 原始文件缓存目录
+# B. Cache: Directory for storing downloaded raw JDX files
 JDX_CACHE_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_reconstrction\ir_redownload_new_sample_ids_file"
 os.makedirs(JDX_CACHE_DIR, exist_ok=True)
 
-# C. 输出：重构后的完整数据集保存目录
+# C. Output: Directory for saving fully reconstructed datasets
 OUTPUT_RECON_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_reconstrction\data_reconstructioned_new_sample_ids_file"
 os.makedirs(OUTPUT_RECON_DIR, exist_ok=True)
 
-# D. 校验对比基准数据集目录
+# D. Benchmark: Directory containing ground-truth baseline data for verification
 BENCHMARK_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_20260817\0_1_2_4_5_6_8_9_16_splitted_and_augmented_data_delete_299"
 
 SPLITS = ["train", "val", "test"]
 
 
-# ================= 3. 阶段一：纯网络下载相关函数 =================
+# ================= 3. Stage 1: Network Download Functions =================
 def download_single_jdx_file(sample_id):
     parts = sample_id.split("_")
     prefix = parts[0]
@@ -123,7 +124,7 @@ def ensure_all_jdx_downloaded(split_name, nist_sample_ids):
     total_target = len(unique_ids)
 
     print(
-        f"\n📥 [阶段 1: 纯 JDX 批量下载] 当前子集需就绪文件数: {total_target} 个 (间隔 {SAFE_DELAY}s)"
+        f"\n📥 [Stage 1: Batch JDX Download] Target files to acquire for '{split_name.upper()}': {total_target} (Interval: {SAFE_DELAY}s)"
     )
 
     round_idx = 1
@@ -137,12 +138,12 @@ def ensure_all_jdx_downloaded(split_name, nist_sample_ids):
 
         if not missing_ids:
             print(
-                f"🎉 【{split_name.upper()} 集】所有 {total_target} 个 JDX 文件已全部下载到本地缓存！"
+                f"🎉 [{split_name.upper()} Set] All {total_target} JDX files are fully cached locally!"
             )
             break
 
         print(
-            f"🔄 --- [第 {round_idx} 轮下载] 剩余未完成: {len(missing_ids)} / {total_target} ---"
+            f"🔄 --- [Download Round {round_idx}] Remaining: {len(missing_ids)} / {total_target} ---"
         )
 
         success_count = 0
@@ -151,16 +152,16 @@ def ensure_all_jdx_downloaded(split_name, nist_sample_ids):
                 success_count += 1
 
         print(
-            f"--> 第 {round_idx} 轮完成: 成功下载 {success_count} 个，剩余 {len(missing_ids) - success_count} 个。"
+            f"--> Round {round_idx} Completed: Successfully downloaded {success_count}, Remaining: {len(missing_ids) - success_count}."
         )
         round_idx += 1
 
         if success_count == 0 and len(missing_ids) > 0:
-            print("⚠️ 网络不稳定，休眠 2 秒后继续捡漏重试...")
+            print("⚠️ Network fluctuation detected. Sleeping for 2.0s before retrying...")
             time.sleep(2.0)
 
 
-# ================= 4. 阶段二：纯本地离线批处理与插值函数 =================
+# ================= 4. Stage 2: Offline Batch Processing & Interpolation Functions =================
 def parse_jdx_spectra(file_path):
     x_raw, y_raw = [], []
     xunits = "WAVENUMBERS"
@@ -208,7 +209,7 @@ def parse_jdx_spectra(file_path):
                     except ValueError:
                         continue
     except Exception as e:
-        print(f"解析 JDX 失败: {e}")
+        print(f"Failed to parse JDX file: {e}")
 
     return x_raw, y_raw, xunits
 
@@ -220,7 +221,7 @@ def process_ir_data(x, y):
 
     if start >= end:
         raise ValueError(
-            f"光谱波数范围 [{min_x:.1f}, {max_x:.1f}] 与 [500, 4000] 无重叠。"
+            f"Wavenumber range [{min_x:.1f}, {max_x:.1f}] does not overlap with [500, 4000]."
         )
 
     mask = (x >= start) & (x <= end)
@@ -228,7 +229,7 @@ def process_ir_data(x, y):
     y_crop = y[mask]
 
     if len(x_crop) < 4:
-        raise ValueError("有效区间内原始点数过少，无法执行三次样条插值。")
+        raise ValueError("Too few valid data points for cubic spline interpolation.")
 
     start_int = int(np.ceil(start))
     end_int = int(np.floor(end))
@@ -290,7 +291,7 @@ def process_local_jdx_file(sample_id):
     local_jdx_path = os.path.join(JDX_CACHE_DIR, f"{sample_id}.jdx")
     x_raw, y_raw, xunits = parse_jdx_spectra(local_jdx_path)
     if not x_raw:
-        raise ValueError(f"无法解析本地 JDX 文件: {local_jdx_path}")
+        raise ValueError(f"Failed to parse local JDX file: {local_jdx_path}")
 
     x_raw_arr = np.array(x_raw)
     y_raw_arr = np.array(y_raw)
@@ -312,15 +313,15 @@ def process_local_jdx_file(sample_id):
     return convert_to_absorbance_single(y_interp)
 
 
-# ================= 5. 数据集重构控制流程 =================
+# ================= 5. Dataset Reconstruction Pipeline =================
 def load_annotated_source_records(split_name):
-    """直接从 INPUT_NO_NIST_DIR 读取每行的 (source_label, sample_id)"""
+    """Reads (source_label, sample_id) pairs line by line directly from INPUT_NO_NIST_DIR."""
     file_path = os.path.join(
         INPUT_NO_NIST_DIR,
         f"{split_name}_source_with_sample_ids_annotated.txt",
     )
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"未在输入目录找到 Annotated 源标签文件: {file_path}")
+        raise FileNotFoundError(f"Annotated source label file not found in input directory: {file_path}")
 
     records = []
     with open(file_path, "r", encoding="utf-8") as f:
@@ -336,7 +337,7 @@ def load_annotated_source_records(split_name):
 
 def reconstruct_subset(split_name):
     print("\n" + "=" * 75)
-    print(f"▶ 正在重构子集: 【{split_name.upper()} 集】")
+    print(f"▶ Reconstructing Subset: [{split_name.upper()} Set]")
     print("=" * 75)
 
     desc_name = (
@@ -362,21 +363,21 @@ def reconstruct_subset(split_name):
     total_count = len(source_records)
     assert (
         len(ir_list) == total_count
-    ), f"数据条数不一致！源记录: {total_count}, IR列表: {len(ir_list)}"
+    ), f"Mismatch in sample counts! Source records: {total_count}, IR list: {len(ir_list)}"
 
-    # 提取所有 NIST sample_id
+    # Extract all NIST sample IDs
     nist_sample_ids = [
         sid
         for lbl, sid in source_records
         if lbl == "NIST" and sid.lower() != "none"
     ]
 
-    # --- 阶段 1: 纯下载阶段 ---
+    # --- Stage 1: Batch Download ---
     ensure_all_jdx_downloaded(split_name, nist_sample_ids)
 
-    # --- 阶段 2: 纯本地极速批处理与填充 ---
+    # --- Stage 2: Local High-Speed Batch Processing & Filling ---
     print(
-        f"\n⚡ [阶段 2: 本地离线极速批处理] 正在批量解析并生成 IR 张量..."
+        f"\n⚡ [Stage 2: Local Offline Batch Processing] Parsing and generating IR tensors..."
     )
 
     parsed_cache = {}
@@ -399,7 +400,7 @@ def reconstruct_subset(split_name):
                 else torch.tensor(curr_ir, dtype=torch.float32)
             )
 
-    # 堆叠成完整 Tensor 并保存
+    # Stack into a single full Tensor and save
     reconstructed_tensor = torch.stack(reconstructed_ir_list, dim=0)
 
     dst_desc = os.path.join(OUTPUT_RECON_DIR, desc_name)
@@ -414,12 +415,12 @@ def reconstruct_subset(split_name):
     shutil.copy2(src_annotated, dst_annotated_source)
 
     print(
-        f"✅ 【{split_name.upper()} 集】已完成重构并导出至: {OUTPUT_RECON_DIR}"
+        f"✅ [{split_name.upper()} Set] Successfully reconstructed and exported to: {OUTPUT_RECON_DIR}"
     )
-    print(f"    - IR 张量最终维度: {reconstructed_tensor.shape}")
+    print(f"    - Final IR Tensor Shape: {reconstructed_tensor.shape}")
 
 
-# ================= 6. 一致性终验函数 =================
+# ================= 6. Consistency Verification Functions =================
 def read_smiles(filepath):
     with open(filepath, "r", encoding="utf-8") as f:
         lines = f.readlines()
@@ -441,7 +442,7 @@ def read_smiles(filepath):
 def verify_consistency(split_name):
     print("\n" + "=" * 75)
     print(
-        f"▶ [阶段 3] 正在校验重构数据与原基准数据的一致性: 【{split_name.upper()} 集】"
+        f"▶ [Stage 3] Verifying data consistency with benchmark: [{split_name.upper()} Set]"
     )
     print("=" * 75)
 
@@ -460,20 +461,20 @@ def verify_consistency(split_name):
     recon_desc_path = os.path.join(OUTPUT_RECON_DIR, desc_name)
     bench_desc_path = os.path.join(BENCHMARK_DIR, desc_name)
 
-    # 1. SMILES 比对
+    # 1. SMILES Comparison
     recon_smi = read_smiles(recon_desc_path)
     bench_smi = read_smiles(bench_desc_path)
 
-    assert len(recon_smi) == len(bench_smi), "SMILES 行数不一致！"
+    assert len(recon_smi) == len(bench_smi), "Mismatch in SMILES row counts!"
     smi_match = sum(1 for a, b in zip(recon_smi, bench_smi) if a == b)
 
-    # 2. IR 光谱数值比对
+    # 2. IR Numerical Spectral Comparison
     recon_ir = torch.load(recon_ir_path, map_location="cpu").float()
     bench_ir = torch.load(bench_ir_path, map_location="cpu").float()
 
     assert (
         recon_ir.shape == bench_ir.shape
-    ), f"IR 维度不一致: {recon_ir.shape} vs {bench_ir.shape}"
+    ), f"IR Tensor dimension mismatch: {recon_ir.shape} vs {bench_ir.shape}"
 
     abs_diff = torch.abs(recon_ir - bench_ir)
     max_ae = torch.max(abs_diff).item()
@@ -485,53 +486,53 @@ def verify_consistency(split_name):
     ).item()
 
     total_len = len(recon_ir)
-    print(f"【{split_name.upper()} 校验统计结果】")
-    print(f"  - 样本总数         : {total_len}")
+    print(f"[{split_name.upper()} Verification Statistics]")
+    print(f"  - Total Samples                : {total_len}")
     print(
-        f"  - SMILES 100% 一致 : {smi_match}/{total_len} ({(smi_match / total_len) * 100:.2f}%)"
+        f"  - SMILES 100% Identical        : {smi_match}/{total_len} ({(smi_match / total_len) * 100:.2f}%)"
     )
     print(
-        f"  - IR 完全匹配 (容差): {perfect_match_count}/{total_len} ({(perfect_match_count / total_len) * 100:.2f}%)"
+        f"  - IR Exact Match (w/ Tolerance): {perfect_match_count}/{total_len} ({(perfect_match_count / total_len) * 100:.2f}%)"
     )
-    print(f"  - IR 最大绝对误差  : {max_ae:.6e}")
-    print(f"  - IR 整体均方误差  : {mse:.2e}")
+    print(f"  - IR Max Absolute Error        : {max_ae:.6e}")
+    print(f"  - IR Mean Squared Error (MSE)  : {mse:.2e}")
 
     if smi_match == total_len and max_ae < 1e-3:
         print(
-            f"  ✨ 结论: 【{split_name.upper()} 集】与原基准数据 100% 精确元素一一对应！"
+            f"  ✨ Conclusion: [{split_name.upper()} Set] 100% element-wise match with the benchmark dataset!"
         )
     else:
         print(
-            f"  ⚠️ 结论: 【{split_name.upper()} 集】存在细微差异，请检查上述指标。"
+            f"  ⚠️ Conclusion: [{split_name.upper()} Set] Minor discrepancies detected. Please inspect the metrics above."
         )
 
 
-# ================= 7. 主执行入口 =================
+# ================= 7. Main Execution Entrypoint =================
 def main():
     print(
-        "🚀 启动 NIST IR 两阶段高效数据重构与验证系统 (先全量下载 -> 再离线批处理)..."
+        "🚀 Launching NIST IR Two-Stage High-Performance Reconstruction & Verification Pipeline (Download -> Offline Batch Processing)..."
     )
     print(
-        f"网络设置: 安全间隔 {SAFE_DELAY}s | 严格 {REQUEST_TIMEOUT[0]+REQUEST_TIMEOUT[1]}s 熔断跳过 | 全自动断点续传"
+        f"Network Config: Safe Delay {SAFE_DELAY}s | Strict {REQUEST_TIMEOUT[0]+REQUEST_TIMEOUT[1]}s Circuit Breaking | Auto-Resume"
     )
-    print(f"输入数据目录 (含待填充IR及标签): {INPUT_NO_NIST_DIR}")
-    print(f"JDX 缓存目录                   : {JDX_CACHE_DIR}")
-    print(f"输出重构目录                   : {OUTPUT_RECON_DIR}")
-    print(f"基准校验目录                   : {BENCHMARK_DIR}")
+    print(f"Input Data Directory (with targets) : {INPUT_NO_NIST_DIR}")
+    print(f"JDX Cache Directory                 : {JDX_CACHE_DIR}")
+    print(f"Output Reconstruction Directory     : {OUTPUT_RECON_DIR}")
+    print(f"Benchmark Reference Directory       : {BENCHMARK_DIR}")
 
-    # 1. 依次处理 Train -> Val -> Test
+    # 1. Process Train -> Val -> Test sequentially
     for split in SPLITS:
         reconstruct_subset(split)
 
-    # 2. 依次校验 Train -> Val -> Test 与基准数据的一致性
+    # 2. Verify consistency for Train -> Val -> Test against benchmark
     print("\n" + "#" * 75)
-    print("📋 开始执行全量数据集一致性终验...")
+    print("📋 Starting full dataset consistency verification...")
     print("#" * 75)
     for split in SPLITS:
         verify_consistency(split)
 
     print("\n" + "=" * 75)
-    print("🎉 全部任务顺利完成！所有数据集已完成 100% 重构并通过终验。")
+    print("🎉 All tasks completed successfully! Datasets are 100% reconstructed and verified.")
     print("=" * 75)
 
 
