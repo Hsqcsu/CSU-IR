@@ -82,7 +82,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 #### 2.2 EB-TF dataset Construction (Optional)
 
-The EB-TF dataset incorporates Thermo Fisher (TF) data into the existing EB dataset. The Thermo Fisher database used to build the EB_TF dataset is a commercial proprietary resource, which can be accessed through standard procurement procedures from the vendor. To ensure reproducibility and verifiability, the molecule identifiers and source labels can be downloaded from  **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**. The preprocessing scripts of the Thermo Fisher data are given in [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). 
+The EB-TF dataset incorporates Thermo Fisher (TF) data into the existing EB dataset. The Thermo Fisher database used to build the EB_TF dataset is a commercial proprietary resource, which can be accessed through standard procurement procedures from the vendor. To ensure reproducibility and verifiability, the molecule identifiers and source labels can be downloaded from  **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**. The preprocessing scripts of the Thermo Fisher data are given in [`CSU-IR/data_process/ir_process.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/data_process/ir_process.py), specifically utilizing the CSV-related processing functions.
 
 #### 2.3 Other Data & Checkpoints Preparation
 
