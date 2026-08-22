@@ -68,7 +68,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 **Step 2:** Put all the downloaded files into our filefolder[`CSU-IR/data/EB_dataset/data_without_NIST_IR/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/EB_dataset/data_without_NIST_IR).
 
-**Step 3:** Run the data_reconstruction script [`CSU-IR/train_and_val/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/train_and_val). 
+**Step 3:** Run the data_reconstruction script [`CSU-IR/EB_dataset_construction/EB_data_reconstruction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction/EB_data_reconstruction.py). 
 
 **Notes Important！！！** 
 
