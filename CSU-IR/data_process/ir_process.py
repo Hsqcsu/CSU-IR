@@ -1,132 +1,104 @@
 import numpy as np
-from scipy.interpolate import interp1d
-import warnings
+from scipy.interpolate import CubicSpline
 
-def exp_func(x, a, b, c):
-    return a * np.exp(-b * x) + c
+def _resample_and_pad_spectrum(wavenumbers, intensities):
+    x = np.array(wavenumbers, dtype=float)
+    y = np.array(intensities, dtype=float)
+    valid_mask = (~np.isnan(x)) & (~np.isnan(y)) & (y != 0)
+    x = x[valid_mask]
+    y = y[valid_mask]
+    if len(x) < 4:
+        return None
+    if np.nanmax(x) < 100.0:
+        x = 10000.0 / x
+    _, unique_indices = np.unique(x, return_index=True)
+    x = x[unique_indices]
+    y = y[unique_indices]
+    sort_idx = np.argsort(x)
+    x = x[sort_idx]
+    y = y[sort_idx]
+    min_x, max_x = x[0], x[-1]
+    start = max(min_x, 500.0)
+    end = min(max_x, 4000.0)
+    if start >= end:
+        return None
+    mask = (x >= start) & (x <= end)
+    x_crop = x[mask]
+    y_crop = y[mask]
+    if len(x_crop) < 4:
+        return None
+    start_int = int(np.ceil(start))
+    end_int = int(np.floor(end))
+    x_temp = np.arange(start_int, end_int + 1, 1.0)
+    x_temp = np.clip(x_temp, x_crop[0], x_crop[-1])
+    cs_crop = CubicSpline(x_crop, y_crop, extrapolate=True)
+    y_temp = cs_crop(x_temp)
+    x_full = np.arange(500, 4001, 1.0)
+    y_full = np.zeros_like(x_full)
+    idx_start = start_int - 500
+    idx_end = end_int - 500
+    y_full[idx_start:idx_end + 1] = y_temp
+    if idx_start > 0:
+        y_full[:idx_start] = y_temp[0]
+    if idx_end < 3500:
+        y_full[idx_end + 1:] = y_temp[-1]
+    x_target = np.linspace(500.0, 4000.0, 3500)
+    cs_full = CubicSpline(x_full, y_full, extrapolate=True)
+    return cs_full(x_target)
 
-# define ir process functions
-def preprocess_absorbances_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
-    wavenumbers = np.array(wavenumbers, dtype=float)
-    transmittances = np.array(transmittances, dtype=float)
-    valid_indices = np.where(transmittances != 0)[0]
-    wavenumbers = wavenumbers[valid_indices]
-    transmittances = transmittances[valid_indices]
-    num_points = int(4000 - wavenumbers[0])
-    target_wavenumbers = np.linspace(wavenumbers[0], wavenumbers[-1], num_points)
-    interpolator = interp1d(wavenumbers, transmittances, kind=method)
-    interpolated_transmittances = interpolator(target_wavenumbers)
-    baseline_value = find_baseline(transmittances)
-    num_zeros = max(int((wavenumbers[0] - 0.000000001) - 500) + 1, 0)
-    y_points = [interpolated_transmittances[0], baseline_value]
-    x_new = np.linspace(0, num_zeros - 1, num_zeros)
-    a = y_points[0] - y_points[1]
-    b = 0.03
-    c = y_points[1]
-    y_fit = exp_func(x_new, a, b, c)
-    y_fit_flipped = np.flip(y_fit)
-    padded_transmittances = np.concatenate((y_fit_flipped, interpolated_transmittances))
-    padded_transmittances = (padded_transmittances - np.min(padded_transmittances)) / (
-            np.max(padded_transmittances) - np.min(padded_transmittances))
-    if np.any(np.isnan(padded_transmittances)):
-        print("NaN values found in normalized absorbances")
-    if len(padded_transmittances) != 3500:
-        raise ValueError("The number of filled data points is not equal to 3500")
-    return padded_transmittances
-
-def preprocess_absorbances_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
-    wavenumbers = np.array(wavenumbers, dtype=float)
-    transmittances = np.array(transmittances, dtype=float)
-    valid_indices = np.where(transmittances != 0)[0]
-    wavenumbers = wavenumbers[valid_indices]
-    transmittances = transmittances[valid_indices]
-    closest_index = np.argmin(np.abs(wavenumbers - 500))
-    wavenumbers = wavenumbers[closest_index:]
-    transmittances = transmittances[closest_index:]
-    num_points = 3500
-    target_wavenumbers = np.linspace(wavenumbers[0], wavenumbers[-1], num_points)
-    interpolator = interp1d(wavenumbers, transmittances, kind=method)
-    interpolated_transmittances = interpolator(target_wavenumbers)
-    padded_transmittances = (interpolated_transmittances - np.min(interpolated_transmittances)) / (
-            np.max(interpolated_transmittances) - np.min(interpolated_transmittances))
-    if np.any(np.isnan(padded_transmittances)):
-        print("NaN values found in normalized absorbances")
-    if len(padded_transmittances) != 3500:
-        raise ValueError("The number of filled data points is not equal to 3500")
-    return padded_transmittances
-
-
-def preprocess_transmittances_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
-    wavenumbers = np.array(wavenumbers, dtype=float)
-    transmittances = np.array(transmittances, dtype=float)
-    valid_indices = np.where(transmittances != 0)[0]
-    wavenumbers = wavenumbers[valid_indices]
-    transmittances = transmittances[valid_indices]
-    transmittances = transmittances / 100.0
-
-    num_points = int(4000 - wavenumbers[0])
-    target_wavenumbers = np.linspace(wavenumbers[0], wavenumbers[-1], num_points)
-    interpolator = interp1d(wavenumbers, transmittances, kind=method)
-    interpolated_transmittances = interpolator(target_wavenumbers)
-
+def preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
     try:
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            absorbances = -np.log10(interpolated_transmittances)
-    except Exception as e:
-        print(f"Error in absorbance conversion: {e}")
-        return None, None
+        t = np.array(transmittances, dtype=float)
+        if np.nanmax(t) > 1.5:
+            t = t / 100.0
+        t = np.clip(t, 1e-4, 1.0)
+        abs_raw = -np.log10(t)
+        processed_y = _resample_and_pad_spectrum(wavenumbers, abs_raw)
+        if processed_y is None:
+            return None
+        min_val = np.min(processed_y)
+        max_val = np.max(processed_y)
+        if max_val > min_val:
+            normalized = (processed_y - min_val) / (max_val - min_val)
+        else:
+            normalized = np.zeros_like(processed_y)
+        if np.any(np.isnan(normalized)):
+            return None
+        return normalized
+    except Exception:
+        return None
 
-    baseline_value = find_baseline(absorbances)
-    num_zeros = max(int((wavenumbers[0] - 0.000000001) - 500) + 1, 0)
-    y_points = [absorbances[0], baseline_value]
-    x_new = np.linspace(0, num_zeros - 1, num_zeros)
-    a = y_points[0] - y_points[1]
-    b = 0.03
-    c = y_points[1]
-    y_fit = exp_func(x_new, a, b, c)
-    y_fit_flipped = np.flip(y_fit)
-    padded_absorbances = np.concatenate((y_fit_flipped, absorbances))
-    padded_absorbances = (padded_absorbances - np.min(padded_absorbances)) / (
-            np.max(padded_absorbances) - np.min(padded_absorbances))
-    if np.any(np.isnan(padded_absorbances)):
-        print("NaN values found in normalized absorbances")
-    if len(padded_absorbances) != 3500:
-        raise ValueError("The number of filled data points is not equal to 3500")
-    return padded_absorbances
+def preprocess_csv_spectra_lower_than_500(wavenumbers, transmittances, method='cubic'):
+    return preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method=method)
 
-
-def preprocess_transmittances_spectra_lower_500(wavenumbers, transmittances, method='cubic'):
-    wavenumbers = np.array(wavenumbers, dtype=float)
-    transmittances = np.array(transmittances, dtype=float)
-    valid_indices = np.where(transmittances != 0)[0]
-    wavenumbers = wavenumbers[valid_indices]
-    transmittances = transmittances[valid_indices]
-    transmittances = transmittances / 100.0
-    closest_index = np.argmin(np.abs(wavenumbers - 500))
-    wavenumbers = wavenumbers[closest_index:]
-    transmittances = transmittances[closest_index:]
-    target_wavenumbers = np.linspace(wavenumbers[0], wavenumbers[-1], 3500)
-    interpolator = interp1d(wavenumbers, transmittances, kind=method)
-    interpolated_transmittances = interpolator(target_wavenumbers)
+def preprocess_jdx_spectra_higer_500(wavenumbers, intensities, method='cubic'):
     try:
-        with warnings.catch_warnings(record=True) as w:
-            warnings.simplefilter("always")
-            absorbances = -np.log10(interpolated_transmittances)
-            if len(w) > 0 and issubclass(w[-1].category, RuntimeWarning):
-                raise RuntimeWarning("invalid value encountered in log10")
-        normalized_absorbances = (absorbances - np.min(absorbances)) / (np.max(absorbances) - np.min(absorbances))
-    except Exception as e:
-        print(f"Error in absorbance conversion or normalization: {e}")
-        return None, None
-    if np.any(np.isnan(normalized_absorbances)):
-        print("NaN values found in normalized absorbances")
-        return None, None
-    return normalized_absorbances
+        processed_y = _resample_and_pad_spectrum(wavenumbers, intensities)
+        if processed_y is None:
+            return None
+        min_val = np.min(processed_y)
+        max_val = np.max(processed_y)
+        if max_val > min_val:
+            norm_spec = (processed_y - min_val) / (max_val - min_val)
+        else:
+            norm_spec = np.zeros_like(processed_y)
+        spec_median = np.median(norm_spec)
+        if spec_median > 0.45:
+            spec_clipped = np.clip(norm_spec, 1e-4, 1.0)
+            abs_spec = -np.log10(spec_clipped)
+            min_val_abs = np.min(abs_spec)
+            max_val_abs = np.max(abs_spec)
+            if max_val_abs > min_val_abs:
+                final_spec = (abs_spec - min_val_abs) / (max_val_abs - min_val_abs)
+            else:
+                final_spec = np.zeros_like(abs_spec)
+        else:
+            final_spec = norm_spec
+        if np.any(np.isnan(final_spec)):
+            return None
+        return final_spec
+    except Exception:
+        return None
 
-
-
-def find_baseline(spectrum, window_size=50):
-    local_minima = [np.min(spectrum[i:i + window_size]) for i in range(0, len(spectrum), window_size)]
-    baseline_value = np.median(local_minima)
-    return baseline_value
+def preprocess_jdx_spectra_lower_500(wavenumbers, intensities, method='cubic'):
+    return preprocess_jdx_spectra_higer_500(wavenumbers, intensities, method=method)
