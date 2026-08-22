@@ -90,7 +90,7 @@ The other data used in our study (For example, the multi-stage pretraining data)
 
 ### 3. Training
 
-You can initiate training scripts using a configuration file. All configs are located in the configs/ directory. The training config for SOTA comparison is also privided.
+You can initiate training scripts using a configuration file. All configs are located in the configs/ directory. The training config of CSU-IR for SOTA comparison is also privided. Below we provide the main training process of CSU-IR (Multi-stage training, MD DFT EXP). The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory.
 
 > Ensure you are in the project's root directory and your environment is activated.
 > 
