@@ -1,16 +1,17 @@
-# Configuration for the CSU-IR pre-training script
+# Configuration for CSU-IR Multi-stage Training - Stage II (DFT Simulation Data)
 
 paths:
+  # Base output directory (The script will automatically route to 'MD_DFT' or 'DFT_without_MD_pretraining')
   output_dir: check_points/Multi-stage_training_Stage_II_DFT
   tokenizer: model/tokenizer-smiles-roberta-1e_new
-  ir_model_check_point: check_points/Multi-stage_training_Stage_I_MD/best_ir_model_epoch_79_ratio_0.9810.pth
-  smiles_model_check_point: check_points/Multi-stage_training_Stage_I_MD/best_smiles_model_epoch_79_ratio_0.9810.pth
-  train_smiles: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_train_smiles.txt
-  train_ir: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_train_ir.pt
-  val_smiles: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_val_smiles.txt
-  val_ir: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_val_ir.pt
-  test_smiles: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_test_smiles.txt
-  test_ir: data/Multi-staged_training_data/Density functional simulation data/QM9S_DFT_test_ir.pt
+
+  # Data paths
+  train_smiles: data/Multi-staged_training_data/Density functional simulation data/train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Density functional simulation data/train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Density functional simulation data/al_smiles.txt
+  val_ir: data/Multi-staged_training_data/Density functional simulation data/val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Density functional simulation data/test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Density functional simulation data/Qtest_ir.pt
 
 model_params:
   smiles_model:
@@ -25,7 +26,9 @@ model_params:
     no_txtnorm: false
 
 training_params:
-  num_epochs: 80
+  stage: DFT          # Automatically triggers MD weight detection & path routing
+  num_epochs: 1000    # Governed by early stopping
+  patience: 15        # Early stopping patience on Val Recall@1
   device: auto
 
 dataloader_params:
@@ -34,11 +37,7 @@ dataloader_params:
 
 optimizer_params:
   learning_rate: 5.0e-5  
-  weight_decay: 1.0e-4
+  weight_decay: 1.0e-2
 
 scheduler_params:
   warmup_epochs: 10
-
-model_save_params:
-  num_best_models: 1
-  loss_log_file: loss_data.json
