@@ -1,1 +1,43 @@
+# Configuration for CSU-IR Multi-stage Training - Stage III (Experimental Benchmarking Data - EB)
 
+paths:
+  # Base output directory (The script will automatically route to 'MD_DFT_EXP', 'DFT_EXP', 'MD_EXP', or 'EXP_without_any_pretraining')
+  output_dir: check_points/Multi-stage_training_Stage_III_EXP
+  tokenizer: model/tokenizer-smiles-roberta-1e_new
+
+  # Experimental Benchmarking (EB) Data paths
+  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/val_smiles.txt
+  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/test_ir.pt
+
+model_params:
+  smiles_model:
+    smiles_maxlen: 300
+    max_position_embeddings: 505
+    vocab_size: 181
+    feature_dim: 768
+  ir_model:
+    output_channels: 768
+    channels: 32
+    dim: 1024
+    no_txtnorm: false
+
+training_params:
+  stage: EXP          # Triggers automatic 4-tier pre-trained weight detection & path routing
+  num_epochs: 1000    # Governed by early stopping
+  patience: 15        # Early stopping patience on Val Recall@1
+  device: auto
+
+dataloader_params:
+  batch_size: 208
+  num_workers: 0
+
+optimizer_params:
+  learning_rate: 2.6e-4  
+  weight_decay: 1.0e-2
+
+scheduler_params:
+  warmup_epochs: 10
