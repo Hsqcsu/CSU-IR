@@ -1,1 +1,30 @@
+# Configuration for CSU-IR SOTA_Comparison (Experimental Benchmarking Data Finetuning - EB_CHONF)
 
+model_params:
+  smiles_model:
+    smiles_maxlen: 300
+    max_position_embeddings: 505
+    vocab_size: 181
+    feature_dim: 768
+  ir_model:
+    output_channels: 768
+    channels: 32
+    dim: 1024
+    no_txtnorm: false
+
+training_params:
+  stage: EXP          
+  num_epochs: 1000    
+  patience: 15       
+  device: auto
+
+dataloader_params:
+  batch_size: 208
+  num_workers: 0
+
+optimizer_params:
+  learning_rate: 2.6e-4  
+  weight_decay: 1.0e-1
+
+scheduler_params:
+  warmup_epochs: 10
