@@ -47,7 +47,7 @@ training_params:
   device: auto
 
 dataloader_params:
-  batch_size: 208
+  batch_size: 108
   num_workers: 0
 
 optimizer_params:
