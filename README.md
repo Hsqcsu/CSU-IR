@@ -97,7 +97,7 @@ You can initiate training scripts using a configuration file. All configs are lo
 The training config of CSU-IR for SOTA comparison is also privided.
 
 The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory.
-
+> [!NOTE]
 > Ensure you are in the project's root directory and your environment is activated.
 > 
 > Put the corresponding training data into the corresponding folder according to the config file.
