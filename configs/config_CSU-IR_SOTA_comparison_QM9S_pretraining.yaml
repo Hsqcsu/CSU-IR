@@ -40,7 +40,7 @@ training_params:
   # Task Switcher:
   #   - Set to 'QM9S_ir_only'  for Task 1 (and comment out raman paths above)
   #   - Set to 'QM9S_ir_raman' for Task 3 (and keep raman paths enabled above)
-  task: QM9S_ir_raman
+  task: QM9S_ir_only
   num_epochs: 1000
   patience: 15
   device: auto
