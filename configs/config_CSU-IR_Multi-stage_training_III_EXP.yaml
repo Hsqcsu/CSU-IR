@@ -6,12 +6,12 @@ paths:
   tokenizer: model/tokenizer-smiles-roberta-1e_new
 
   # Experimental Benchmarking (EB) Data paths
-  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/train_smiles.txt
-  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/train_ir.pt
-  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/val_smiles.txt
-  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/val_ir.pt
-  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/test_smiles.txt
-  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/test_ir.pt
+  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/val_smiles.txt
+  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/test_ir.pt
 
 model_params:
   smiles_model:
