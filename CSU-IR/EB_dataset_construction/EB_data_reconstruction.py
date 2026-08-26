@@ -63,7 +63,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Navigate up one level to CSU-IR/ and locate CSU-IR/data/EB_dataset/
 CSU_IR_DIR = os.path.dirname(SCRIPT_DIR)
-DATA_BASE_DIR = os.path.join(CSU_IR_DIR, "data", "EB_dataset")
+DATA_BASE_DIR = os.path.join(CSU_IR_DIR, "data", "Multi-staged_training_data", "Experimental_Benching_data", "EB")
 
 # A. Input: Directory containing datasets with placeholder None IR (data/EB_dataset/data_without_NIST_IR)
 INPUT_NO_NIST_DIR = os.path.join(DATA_BASE_DIR, "data_without_NIST_IR")
