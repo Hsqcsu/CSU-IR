@@ -74,7 +74,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 >
 >The whole construction will take ~8 hours，brief hangs are expected during the process.
 >
->The EB_CHONF, PS and E2S subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The experimental data for the E2S subset are based on EB_CHONF, which needs to be obtained from EB first. The DFT spectra used to construct the E2S subset via the corresponding script should be downloaded from the **[Download Hub: Hugging Face Repository (Stage II- DFT Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20II-%20DFT)** and put the corresponding DFT data into the corresponding folder according to the E2S construction script.
+>The EB_CHONF, PS subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The experimental data for the E2S subset are based on EB_CHONF, which needs to be obtained from EB first. 
 
 > [!WARNING]
 > 
