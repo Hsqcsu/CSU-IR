@@ -70,7 +70,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 **Step 3:** Run the data_reconstruction script [`CSU-IR/EB_dataset_construction/EB_data_reconstruction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction/EB_data_reconstruction.py). 
 
-> [!Notes]
+> [!NOTE]
 >
 >The whole construction will take ~8 hours，brief hangs are expected during the process.
 >
