@@ -6,10 +6,10 @@ This is the official code repository for our paper, **"From spectra to structure
 
 We introduce **CSU-IR**, a novel deep learning framework designed for high-precision unknown-compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
 
-*   🚀 **Exceptional 100-Million-Scale Library Retrieval Performance**: Maintains high accuracy (Recall@1 of 63.11% and a Recall@10 of 90.74%) when retrieving against libraries containing 100 million compounds.
-*   🎯 **Specialized for Psychoactive Substances Identification**: Purpose-built models and libraries for the accurate retrieval of Psychoactive Substances.
-*   🔬 **Multi-perspective Interpretability**: CSU-IR achieves accurate and trustworthy spectral retrieval by grounding its predictions in interpretable chemical property and specific spectral-structural correspondence.
-*   🧩 **Comprehensive Functional Groups Detection**: The model successfully detected 48 functional groups with an average recall@1 of 93.80%.
+*   **Exceptional 100-Million-Scale Library Retrieval Performance**: Maintains high accuracy (Recall@1 of 63.11% and a Recall@10 of 90.74%) when retrieving against libraries containing 100 million compounds.
+*   **Specialized for Psychoactive Substances Identification**: Purpose-built models and libraries for the accurate retrieval of Psychoactive Substances.
+*   **Multi-perspective Interpretability**: CSU-IR achieves accurate and trustworthy spectral retrieval by grounding its predictions in interpretable chemical property and specific spectral-structural correspondence.
+*   **Comprehensive Functional Groups Detection**: The model successfully detected 48 functional groups with an average recall@1 of 93.80%.
 
 <img width="4575" height="3950" alt="Fig1_github" src="https://github.com/user-attachments/assets/b8e2f632-3a61-4840-aecb-c7bbe9200f06" />
 
@@ -64,7 +64,7 @@ pip install -r requirements/requirements_local.txt
 
 The complete dataset with identical splits can be fully reproduced locally. Please follow the steps.
 
-**Step 1:** Download the EB dataset (including the smiles txt file, compound ids txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**.
+**Step 1:** Download the EB dataset (including the smiles txt file, compound labels txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository (Stage III- EXP / EB Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20III-%20EXP/EB)**.
 
 **Step 2:** Put all the downloaded files into our filefolder[`CSU-IR/data/EB_dataset/data_without_NIST_IR/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/EB_dataset/data_without_NIST_IR).
 
@@ -74,11 +74,14 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 >The whole construction will take ~8 hours，brief hangs are expected during the process.
 
->The EB_CHONF, PS and E2S subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The experimental data for the E2S subset are based on EB_CHONF, which needs to be obtained from EB first. The DFT spectra used to construct the E2S subset via the corresponding script should be downloaded from the **[Download Hub: Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR)**.
+>The EB_CHONF, PS and E2S subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The experimental data for the E2S subset are based on EB_CHONF, which needs to be obtained from EB first. The DFT spectra used to construct the E2S subset via the corresponding script should be downloaded from the **[Download Hub: Hugging Face Repository (Stage II- DFT Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20II-%20DFT)**.
 
->These scripts are provided solely for provenance tracking and reproducibility. Users remain responsible for complying with the NIST Chemistry WebBook (SRD 69) terms of use, institutional policies, and relevant legal requirements.
-
->Such generated files are not covered by the license of our repository. This repository does not grant permission to redistribute, publish, mirror, sublicense, or commercially reuse generated WebBook-derived data files.
+> [!WARNING]
+> **Important Compliance Notice**
+> 
+> These scripts are provided solely for provenance tracking and reproducibility. Users remain responsible for complying with the NIST Chemistry WebBook (SRD 69) terms of use, institutional policies, and relevant legal requirements.
+> 
+> Such generated files are not covered by the license of our repository. This repository does not grant permission to redistribute, publish, mirror, sublicense, or commercially reuse generated WebBook-derived data files.
 
 #### 2.2 EB-TF dataset Construction (Optional)
 
