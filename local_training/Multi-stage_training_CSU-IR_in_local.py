@@ -1,7 +1,7 @@
 import sys
 import os
-import yaml 
-import json 
+import yaml
+import json
 import argparse
 import torch
 import torch.nn.functional as F
@@ -11,12 +11,13 @@ from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
 from torch.cuda.amp import autocast, GradScaler
 from tqdm import tqdm
 
-
+# Ensure project root is in system path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'CSU-IR'))
-print(PROJECT_ROOT)
+if not os.path.exists(PROJECT_ROOT):
+    # Fallback to local script relative path
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, PROJECT_ROOT)
 
-# If there is a red underline below, don't worry, it will not affect the code running
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
 
@@ -24,13 +25,15 @@ from model.SMILES_encoder import SmilesModel
 def load_smiles_ir(smiles_path, ir_path):
     with open(smiles_path, 'r', encoding='utf-8') as f:
         smiles = f.read().splitlines()
-    ir = torch.load(ir_path)
+    ir = torch.load(ir_path, map_location='cpu')
     return smiles, ir
-    
+
+
 def get_lr_multiplier(epoch, warmup_epochs):
     if epoch < warmup_epochs:
         return float(epoch + 1) / float(warmup_epochs)
     return 1.0
+
 
 def count_parameters(model):
     return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -48,22 +51,112 @@ class IRSmilesDataset(Dataset):
         return self.ir_spectra[idx], self.smiles[idx]
 
 
+# ==========================================
+# Multi-Stage Checkpoint Auto-Resolver
+# ==========================================
+def resolve_multi_stage_checkpoints_and_paths(config, project_root):
+    """
+    Automatically resolves pre-trained weights and destination output directory
+    based on multi-stage training logic.
+    """
+    ckpt_root = os.path.join(project_root, "check_points")
+    stage_1_dir = os.path.join(ckpt_root, "Multi-stage_training_Stage_I_MD")
+    
+    stage_2_base = os.path.join(ckpt_root, "Multi-stage_training_Stage_II_DFT")
+    stage_2_md_dft = os.path.join(stage_2_base, "MD_DFT")
+    stage_2_no_md = os.path.join(stage_2_base, "DFT_without_MD_pretraining")
+    
+    stage_3_base = os.path.join(ckpt_root, "Multi-stage_training_Stage_III_EXP")
+    stage_3_md_dft_exp = os.path.join(stage_3_base, "MD_DFT_EXP")
+    stage_3_dft_exp = os.path.join(stage_3_base, "DFT_EXP")
+    stage_3_md_exp = os.path.join(stage_3_base, "MD_EXP")
+    stage_3_no_pretrain = os.path.join(stage_3_base, "EXP_without_any_pretraining")
 
+    def check_weights(folder):
+        smiles_p = os.path.join(folder, "best_smiles_model.pth")
+        ir_p = os.path.join(folder, "best_ir_model.pth")
+        if os.path.exists(smiles_p) and os.path.exists(ir_p):
+            return smiles_p, ir_p
+        return None, None
+
+    stage = config.get("training_params", {}).get("stage", "MD").upper()
+    load_smiles_ckpt, load_ir_ckpt = None, None
+    target_output_dir = None
+
+    print(f"\n{'='*25} Multi-Stage Auto Routing: [STAGE {stage}] {'='*25}")
+
+    if stage == "MD" or stage == "STAGE_I":
+        target_output_dir = stage_1_dir
+        print(f"--> Stage I (MD): Training from scratch. Output: {target_output_dir}")
+
+    elif stage == "DFT" or stage == "STAGE_II":
+        # Check Stage I (MD)
+        s_ckpt, i_ckpt = check_weights(stage_1_dir)
+        if s_ckpt and i_ckpt:
+            load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
+            target_output_dir = stage_2_md_dft
+            print(f"--> Found Stage I (MD) weights! Inheriting weights from: {stage_1_dir}")
+            print(f"--> Output directory set to: {target_output_dir}")
+        else:
+            target_output_dir = stage_2_no_md
+            print(f"--> No Stage I weights found. Training DFT from scratch. Output: {target_output_dir}")
+
+    elif stage in ["EXP", "EB", "STAGE_III"]:
+        # Priority 1: Stage II MD_DFT
+        s_ckpt, i_ckpt = check_weights(stage_2_md_dft)
+        if s_ckpt and i_ckpt:
+            load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
+            target_output_dir = stage_3_md_dft_exp
+            print(f"--> [Priority 1 Hit] Loaded MD_DFT weights from: {stage_2_md_dft}")
+            print(f"--> Output directory set to: {target_output_dir}")
+        else:
+            # Priority 2: Stage II DFT without MD
+            s_ckpt, i_ckpt = check_weights(stage_2_no_md)
+            if s_ckpt and i_ckpt:
+                load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
+                target_output_dir = stage_3_dft_exp
+                print(f"--> [Priority 2 Hit] Loaded DFT_without_MD weights from: {stage_2_no_md}")
+                print(f"--> Output directory set to: {target_output_dir}")
+            else:
+                # Priority 3: Stage I MD only
+                s_ckpt, i_ckpt = check_weights(stage_1_dir)
+                if s_ckpt and i_ckpt:
+                    load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
+                    target_output_dir = stage_3_md_exp
+                    print(f"--> [Priority 3 Hit] Loaded MD ONLY weights from: {stage_1_dir}")
+                    print(f"--> Output directory set to: {target_output_dir}")
+                else:
+                    target_output_dir = stage_3_no_pretrain
+                    print(f"--> [Priority 4 Hit] No pre-trained weights found. Training EXP from scratch.")
+                    print(f"--> Output directory set to: {target_output_dir}")
+
+    # Override with config output_dir if explicitly provided and not dynamically resolved
+    if target_output_dir:
+        config['paths']['output_dir'] = target_output_dir
+    os.makedirs(config['paths']['output_dir'], exist_ok=True)
+
+    return load_smiles_ckpt, load_ir_ckpt
+
+
+# ==========================================
+# Validation Logic
+# ==========================================
 def validate_model(smiles_model, ir_model, val_loader, device):
     smiles_model.eval()
     ir_model.eval()
     running_loss = 0.0
     result_smiles_features = []
     result_ir_features = []
-    val_loader_tqdm = tqdm(val_loader, desc="Validating", unit="batch", leave=False)
 
     with torch.no_grad():
-        for ir_spectra_batch, smiles_batch in val_loader_tqdm:
+        for ir_spectra_batch, smiles_batch in tqdm(val_loader, desc="Validating", unit="batch", leave=False):
             ir_spectra_tensor = ir_spectra_batch.to(device)
 
             tokenizer = smiles_model.smiles_tokenizer
-            encoded_smiles = [tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
-                                                    truncation=True, return_tensors='pt') for s in smiles_batch]
+            encoded_smiles = [
+                tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
+                                      truncation=True, return_tensors='pt') for s in smiles_batch
+            ]
             input_ids = torch.cat([item['input_ids'] for item in encoded_smiles], dim=0).to(device)
             attention_mask = torch.cat([item['attention_mask'] for item in encoded_smiles], dim=0).to(device)
             lengths = attention_mask.sum(dim=1)
@@ -82,9 +175,8 @@ def validate_model(smiles_model, ir_model, val_loader, device):
                 loss = -torch.sum(F.logsigmoid(labels * logits)) / n
 
             running_loss += loss.item() * ir_spectra_tensor.size(0)
-            val_loader_tqdm.set_postfix(loss=loss.item())
 
-    # Calculate Top-1 accuracy
+    # Calculate Recall@1 (Top-1 Accuracy)
     all_smiles_features = torch.cat(result_smiles_features, 0)
     all_ir_features = torch.cat(result_ir_features, 0)
     logits_full = torch.matmul(all_ir_features, all_smiles_features.T)
@@ -97,13 +189,18 @@ def validate_model(smiles_model, ir_model, val_loader, device):
     return val_loss, top_1_ratio
 
 
+# ==========================================
+# Main Training Loop with Early Stopping
+# ==========================================
 def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device):
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
     num_epochs = config['training_params']['num_epochs']
+    patience = config['training_params'].get('patience', 15)
     warmup_epochs = config['scheduler_params']['warmup_epochs']
 
     best_val_ratio = -1.0
+    early_stop_counter = 0
 
     best_smiles_path = os.path.join(output_dir, 'best_smiles_model.pth')
     best_ir_path = os.path.join(output_dir, 'best_ir_model.pth')
@@ -111,9 +208,7 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
     scheduler_warmup = LambdaLR(optimizer, lr_lambda=lambda epoch: get_lr_multiplier(epoch, warmup_epochs))
     scheduler_cosine = CosineAnnealingLR(optimizer, T_max=(num_epochs - warmup_epochs))
 
-    os.makedirs(output_dir, exist_ok=True)
-
-    training_losses, validation_losses = [], []
+    training_losses, validation_losses, validation_recalls = [], [], []
 
     for epoch in range(num_epochs):
         smiles_model.train()
@@ -125,8 +220,10 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
             ir_spectra_tensor = ir_spectra_batch.to(device)
 
             tokenizer = smiles_model.smiles_tokenizer
-            encoded_smiles = [tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
-                                                    truncation=True, return_tensors='pt') for s in smiles_batch]
+            encoded_smiles = [
+                tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
+                                      truncation=True, return_tensors='pt') for s in smiles_batch
+            ]
             input_ids = torch.cat([item['input_ids'] for item in encoded_smiles], dim=0).to(device)
             attention_mask = torch.cat([item['attention_mask'] for item in encoded_smiles], dim=0).to(device)
             lengths = attention_mask.sum(dim=1)
@@ -146,45 +243,50 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
             scaler.step(optimizer)
             scaler.update()
 
-            running_loss += loss.item()
+            running_loss += loss.item() * ir_spectra_tensor.size(0)
             train_loader_tqdm.set_postfix(loss=loss.item())
 
-        epoch_loss = running_loss / len(train_loader)
+        epoch_loss = running_loss / len(train_loader.dataset)
         training_losses.append(epoch_loss)
 
+        # Validation phase
         val_loss, top_1_ratio = validate_model(smiles_model, ir_model, val_loader, device)
         validation_losses.append(val_loss)
+        validation_recalls.append(top_1_ratio)
 
-        print(
-            f'Epoch {epoch + 1}/{num_epochs}, Train Loss: {epoch_loss:.4f}, Val Loss: {val_loss:.4f}, Top-1 Ratio: {top_1_ratio:.4f}')
+        print(f"Epoch {epoch + 1}/{num_epochs} -> Train Loss: {epoch_loss:.4f} | Val Loss: {val_loss:.4f} | Val Recall@1: {top_1_ratio:.4f}")
 
-        # Update learning rate
-        if epoch < warmup_epochs:
-            scheduler_warmup.step()
-        else:
-            scheduler_cosine.step()
+        # Update learning rate schedule
+        (scheduler_warmup if epoch < warmup_epochs else scheduler_cosine).step()
 
-        # Save top 1 best models
+        # Check Early Stopping & Save Best Models
         if top_1_ratio > best_val_ratio:
             best_val_ratio = top_1_ratio
+            early_stop_counter = 0
             torch.save(smiles_model.state_dict(), best_smiles_path)
             torch.save(ir_model.state_dict(), best_ir_path)
-            print(f"  [New Best] Epoch {epoch + 1}: Top-1 Ratio Upgraded to {best_val_ratio:.4f}. The model has been overwritten and saved.")
+            print(f"  ✨ [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
         else:
-            print(f"  Epoch {epoch + 1}: Top-1 Ratio {top_1_ratio:.4f} Not exceeding the best ({best_val_ratio:.4f}), Skip saving.")
+            early_stop_counter += 1
+            print(f"  ⚠️ [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
 
-    print('\nTraining complete.')
-    print(f'Final Best Top-1 Ratio: {best_val_ratio:.4f}')
-    print(f'Best models saved to:\n  - {best_smiles_path}\n  - {best_ir_path}')
+        # Save training history JSON per epoch
+        history_data = {
+            "train_losses": training_losses,
+            "val_losses": validation_losses,
+            "val_recalls": validation_recalls
+        }
+        with open(os.path.join(output_dir, 'history.json'), 'w', encoding='utf-8') as f:
+            json.dump(history_data, f, indent=4)
 
+        # Trigger Early Stop Termination
+        if early_stop_counter >= patience:
+            print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
+            break
 
-    # Save loss data
-    loss_data = {'training_losses': training_losses, 'validation_losses': validation_losses}
-    loss_file_path = os.path.join(output_dir, config['model_save_params']['loss_log_file'])
-    with open(loss_file_path, 'w') as f:
-        json.dump(loss_data, f, indent=2)
-    print(f"\nLoss data saved to {loss_file_path}")
-
+    print('\n================ Training Summary ================')
+    print(f'Best Validation Recall@1: {best_val_ratio:.4f}')
+    print(f'Model weights & history saved to: {output_dir}')
 
 
 def main():
@@ -195,17 +297,19 @@ def main():
         config_path = args.config
     else:
         default_config_relative_path = "configs/config_CSU-IR_Multi-stage_training_I_MD.yaml"
-        config_path = os.path.join(PROJECT_ROOT,'..' ,default_config_relative_path)
+        config_path = os.path.join(PROJECT_ROOT, '..', default_config_relative_path)
         print(f"No config provided via command line. Using default: {config_path}")
 
-    # Load configuration from YAML file
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
-    # Resolve all paths relative to the project root
+    # Convert paths relative to PROJECT_ROOT
     for key, path in config['paths'].items():
-        if not os.path.isabs(path):
+        if path and not os.path.isabs(path):
             config['paths'][key] = os.path.join(PROJECT_ROOT, path)
+
+    # Auto-resolve multi-stage checkpoints and output directories
+    auto_smiles_ckpt, auto_ir_ckpt = resolve_multi_stage_checkpoints_and_paths(config, PROJECT_ROOT)
 
     # Setup device
     if config['training_params']['device'] == 'auto':
@@ -227,28 +331,24 @@ def main():
 
     IR_model.to(device)
     Smiles_Model.to(device)
-    ir_checkpoint_path = config['paths'].get('ir_model_check_point')
-    if ir_checkpoint_path and os.path.exists(ir_checkpoint_path):
-        try:
-            IR_model.load_state_dict(torch.load(ir_checkpoint_path, map_location=device))
-            print(f"Successfully loaded IR_model checkpoint from: {ir_checkpoint_path}")
-        except Exception as e:
-            print(f"Warning: Failed to load IR_model checkpoint from {ir_checkpoint_path}. Error: {e}")
-    else:
-        print("No valid IR_model checkpoint path provided. Training from scratch.")
 
-    smiles_checkpoint_path = config['paths'].get('smiles_model_check_point')
-    if smiles_checkpoint_path and os.path.exists(smiles_checkpoint_path):
-        try:
-            Smiles_Model.load_state_dict(torch.load(smiles_checkpoint_path, map_location=device))
-            print(f"Successfully loaded Smiles_Model checkpoint from: {smiles_checkpoint_path}")
-        except Exception as e:
-            print(f"Warning: Failed to load Smiles_Model checkpoint from {smiles_checkpoint_path}. Error: {e}")
+    # Checkpoint loading priority: Config explicit path > Auto-resolved multi-stage path
+    final_ir_ckpt = config['paths'].get('ir_model_check_point') or auto_ir_ckpt
+    if final_ir_ckpt and os.path.exists(final_ir_ckpt):
+        IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location=device))
+        print(f"✅ Loaded IR_model checkpoint from: {final_ir_ckpt}")
     else:
-        print("No valid Smiles_Model checkpoint path provided. Training from scratch.")
+        print("ℹ️ Training IR_model from scratch.")
+
+    final_smiles_ckpt = config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
+    if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
+        Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location=device))
+        print(f"✅ Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
+    else:
+        print("ℹ️ Training Smiles_Model from scratch.")
 
     # Load data
-    print("Loading data...")
+    print("Loading datasets...")
     smiles_train, ir_train = load_smiles_ir(config['paths']['train_smiles'], config['paths']['train_ir'])
     smiles_val, ir_val = load_smiles_ir(config['paths']['val_smiles'], config['paths']['val_ir'])
 
@@ -259,20 +359,18 @@ def main():
     train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False)
 
-    print(f"Number of training samples: {len(train_dataset)}")
-    print(f"Number of validation samples: {len(val_dataset)}")
+    print(f"Training samples  : {len(train_dataset)}")
+    print(f"Validation samples: {len(val_dataset)}")
 
-    # Setup optimizer and schedulers
+    # Setup optimizer
     opt_params = config['optimizer_params']
-    sched_params = config['scheduler_params']
-    optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), lr=opt_params['learning_rate'],
+    optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), 
+                      lr=opt_params['learning_rate'],
                       weight_decay=opt_params['weight_decay'])
-    
 
-    # Start training
+    # Start training loop
     train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device)
 
 
 if __name__ == '__main__':
     main()
-
