@@ -112,7 +112,7 @@ python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/c
 python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
 ```
 
-#### Train CSU-IR in Stage-III with the EB data. 
+#### Train CSU-IR in Stage-III with the EXP data. 
 
 ```bash
 python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml
