@@ -1,14 +1,14 @@
-# Configuration for the CSU-IR pre-training script
+# Configuration for CSU-IR Multi-stage Training - Stage I (MD Simulation Data)
 
 paths:
   output_dir: check_points/Multi-stage_training_Stage_I_MD
   tokenizer: model/tokenizer-smiles-roberta-1e_new
-  train_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_train_smiles.txt
-  train_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_train_ir.pt
-  val_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_val_smiles.txt
-  val_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_val_ir.pt
-  test_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_test_smiles.txt
-  test_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/Multimodal_Spectroscopic_Library_test_ir.pt
+  train_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/val_smiles.txt
+  val_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Molecular dynamics simulation data/test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Molecular dynamics simulation data/test_ir.pt
 
 model_params:
   smiles_model:
@@ -23,7 +23,9 @@ model_params:
     no_txtnorm: false
 
 training_params:
-  num_epochs: 80
+  stage: MD           # Multi-stage identifier: MD | DFT | EXP
+  num_epochs: 1000    # Maximum epochs (governed by early stopping)
+  patience: 15        # Early stopping patience on Val Recall@1
   device: auto
 
 dataloader_params:
@@ -32,11 +34,7 @@ dataloader_params:
 
 optimizer_params:
   learning_rate: 5.0e-5  
-  weight_decay: 1.0e-4
+  weight_decay: 1.0e-2
 
 scheduler_params:
   warmup_epochs: 10
-
-model_save_params:
-  num_best_models: 1
-  loss_log_file: loss_data.json
