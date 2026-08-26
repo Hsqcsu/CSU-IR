@@ -92,35 +92,38 @@ The other data used in our study (For example, the multi-stage pretraining data)
 
 ### 3. Training
 
-You can initiate training scripts using a configuration file. All configs are located in the configs/ directory. Below we provide the main training process of CSU-IR (Multi-stage training, MD DFT EXP). 
+You can initiate training scripts using a configuration file. All configs are located in the configs/ directory and all training scripts are located in the local_training/directory. Below we provide the main training process of CSU-IR (Multi-stage training, MD DFT EXP). 
 
-The training config of CSU-IR for SOTA comparison is also privided.
-
-The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory.
 > [!NOTE]
 > Ensure you are in the project's root directory and your environment is activated.
 > 
 > Put the corresponding training data into the corresponding folder according to the config file.
 > 
 > It is strongly recommended to run this script in an IDE terminal (like PyCharm's) instead of the standard system terminal to avoid potential environment-related issues.
+> 
+> If you use the DDP mode, 
 
-#### Train CSU-IR in Stage-I with Molecular Dynamics (MD) data.
+### Multi-Stage Training (Single GPU / DDP)
 
-```bash
-python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_I_MD.yaml
-```
+All stages support both **Single-GPU** and **Multi-GPU (DDP)** training. Replace `<CONFIG_PATH>` with the corresponding configuration file:
 
-#### Train CSU-IR in Stage-II with Density Functional Theory (DFT) data.
+- **Single GPU:**
+  ```bash
+  python local_training/Multi-stage_training_CSU-IR_in_local.py --config <CONFIG_PATH>
+  ```
+- **Multi-GPU (DDP, e.g., 3 GPUs):**
+  ```bash
+  torchrun --nproc_per_node=3 local_training/Multi-stage_training_CSU-IR_in_local.py --config <CONFIG_PATH>
+  ```
 
-```bash
-python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
-```
+#### Configurations by Stage:
+- **Stage-I (MD):** `configs/config_CSU-IR_Multi-stage_training_I_MD.yaml`
+- **Stage-II (DFT):** `configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml`
+- **Stage-III (EXP):** `configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml`
 
-#### Train CSU-IR in Stage-III with the EXP data. 
+The training config and script of CSU-IR for SOTA comparison is also privided. 
 
-```bash
-python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml
-```
+The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory.
 
 ### 4. Testing and Inference
 
