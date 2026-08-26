@@ -1,1 +1,57 @@
+# ==============================================================================
+# Configuration for SOTA Comparison: QM9S Pre-training
+# 
+# Supported Tasks (Shared in this config):
+#   - Task 1: QM9S_ir_only  (Single modality: IR only)
+#   - Task 3: QM9S_ir_raman (Multi-modality: IR + Raman concatenated [N, 7000])
+# ==============================================================================
 
+paths:
+  # Base output directory (The script auto-routes to 'QM9S_ir_only' or 'QM9S_ir_raman' based on task)
+  output_dir: check_points/SOTA_Comparison
+  tokenizer: model/tokenizer-smiles-roberta-1e_new
+
+  # QM9S Data paths
+  train_smiles: data/SOTA_Comparison/QM9S/train_smiles.txt
+  train_ir: data/SOTA_Comparison/QM9S/train_ir.pt
+  val_smiles: data/SOTA_Comparison/QM9S/val_smiles.txt
+  val_ir: data/SOTA_Comparison/QM9S/val_ir.pt
+  test_smiles: data/SOTA_Comparison/QM9S/test_smiles.txt
+  test_ir: data/SOTA_Comparison/QM9S/test_ir.pt
+
+  # Raman data paths (Leave enabled for Task 3 'QM9S_ir_raman'; comment out or set to null for Task 1 'QM9S_ir_only')
+  train_raman: data/SOTA_Comparison/QM9S/train_raman.pt
+  val_raman: data/SOTA_Comparison/QM9S/val_raman.pt
+  test_raman: data/SOTA_Comparison/QM9S/test_raman.pt
+
+model_params:
+  smiles_model:
+    smiles_maxlen: 300
+    max_position_embeddings: 505
+    vocab_size: 181
+    feature_dim: 768
+  ir_model:
+    output_channels: 768
+    channels: 32
+    dim: 1024
+    no_txtnorm: false
+
+training_params:
+  # Task Switcher:
+  #   - Set to 'QM9S_ir_only'  for Task 1 (and comment out raman paths above)
+  #   - Set to 'QM9S_ir_raman' for Task 3 (and keep raman paths enabled above)
+  task: QM9S_ir_raman
+  num_epochs: 1000
+  patience: 15
+  device: auto
+
+dataloader_params:
+  batch_size: 208
+  num_workers: 0
+
+optimizer_params:
+  learning_rate: 5.0e-5  
+  weight_decay: 1.0e-2
+
+scheduler_params:
+  warmup_epochs: 10
