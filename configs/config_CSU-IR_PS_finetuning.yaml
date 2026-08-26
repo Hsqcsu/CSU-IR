@@ -1,1 +1,44 @@
+# ==============================================================================
+# Configuration for PS Subset Fine-tuning & Derivative Library Retrieval Evaluation
+# ==============================================================================
 
+paths:
+  # Output directory for saving checkpoints and evaluation logs
+  output_dir: check_points/PS_derivative_finetuning
+  tokenizer: model/tokenizer-smiles-roberta-1e_new
+
+  # Initial Pre-trained weights to load (Stage III EXP / MD_DFT_EXP)
+  pretrained_smiles_model: check_points/Multi-stage_training_Stage_III_EXP/MD_DFT_EXP/best_smiles_model.pth
+  pretrained_ir_model: check_points/Multi-stage_training_Stage_III_EXP/MD_DFT_EXP/best_ir_model.pth
+
+  # Pre-prepared PS Subset Data paths
+  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/val_smiles.txt
+  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/test_ir.pt
+
+  # PS Derivative background library path for gallery retrieval
+  ps_derivative_library: data/PS Derivative Library/smiles_Derivative_PS.txt
+
+model_params:
+  smiles_model:
+    smiles_maxlen: 300
+    max_position_embeddings: 505
+    vocab_size: 181
+    feature_dim: 768
+  ir_model:
+    output_channels: 768
+    channels: 32
+    dim: 1024
+    no_txtnorm: false
+
+training_params:
+  num_epochs: 10          # Fixed 10 epochs training (best epoch selected on val in derivative library)
+  learning_rate: 2.6e-4
+  weight_decay: 0.1
+  warmup_epochs: 2
+  batch_size: 208
+  seed: 42
+  device: auto
