@@ -1,1 +1,58 @@
+# ==============================================================================
+# Configuration for SOTA Comparison: Task 4 - SDBS_CHONF (IR + Raman) Fine-tuning
+#
+# Multi-modal Concatenation:
+#   - Automatically concatenates IR [N, 3500] and Raman [N, 3500] -> [N, 7000]
+#
+# Inheritance Rule:
+#   - Automatically checks and inherits pre-trained weights from:
+#     'check_points/SOTA_Comparison/QM9S_ir_raman/'
+#   - If no weights found, fine-tunes from scratch.
+# ==============================================================================
 
+paths:
+  # Base output directory (The script automatically saves results to 'SDBS_CHONF_ir_raman_finetuning')
+  output_dir: check_points/SOTA_Comparison
+  tokenizer: model/tokenizer-smiles-roberta-1e_new
+
+  # SDBS Data paths (IR + Raman multi-modal)
+  train_smiles: data/SOTA_Comparison/SDBS_CHONF/train_sdbs_smiles.txt
+  train_ir: data/SOTA_Comparison/SDBS_CHONF/train_sdbs_ir.pt
+  train_raman: data/SOTA_Comparison/SDBS_CHONF/train_sdbs_raman.pt
+
+  val_smiles: data/SOTA_Comparison/SDBS_CHONF/val_sdbs_smiles.txt
+  val_ir: data/SOTA_Comparison/SDBS_CHONF/val_sdbs_ir.pt
+  val_raman: data/SOTA_Comparison/SDBS_CHONF/val_sdbs_raman.pt
+
+  test_smiles: data/SOTA_Comparison/SDBS_CHONF/test_sdbs_smiles.txt
+  test_ir: data/SOTA_Comparison/SDBS_CHONF/test_sdbs_ir.pt
+  test_raman: data/SOTA_Comparison/SDBS_CHONF/test_sdbs_raman.pt
+
+model_params:
+  smiles_model:
+    smiles_maxlen: 300
+    max_position_embeddings: 505
+    vocab_size: 181
+    feature_dim: 768
+  ir_model:
+    output_channels: 768
+    channels: 32
+    dim: 1024
+    no_txtnorm: false
+
+training_params:
+  task: SDBS_CHONF_ir_raman_finetuning   # Triggers automatic QM9S_ir_raman weight loading & multi-modal routing
+  num_epochs: 1000
+  patience: 15
+  device: auto
+
+dataloader_params:
+  batch_size: 208
+  num_workers: 0
+
+optimizer_params:
+  learning_rate: 2.6e-4
+  weight_decay: 1.0e-1
+
+scheduler_params:
+  warmup_epochs: 10
