@@ -115,7 +115,7 @@ python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/c
 #### Train CSU-IR in Stage-III with the EB data. 
 
 ```bash
-python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_III_EB.yaml
+python local_training/Multi-stage_training_CSU-IR_in_local.py --config configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml
 ```
 
 ### 4. Testing and Inference
