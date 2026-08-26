@@ -4,8 +4,10 @@ import yaml
 import json
 import argparse
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR
 from torch.cuda.amp import autocast, GradScaler
@@ -19,6 +21,70 @@ sys.path.insert(0, PROJECT_ROOT)
 
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
+
+
+# ==========================================
+# Distributed & Device Helpers
+# ==========================================
+def is_dist_avail_and_initialized():
+    return torch.distributed.is_available() and torch.distributed.is_initialized()
+
+
+def get_rank():
+    if not is_dist_avail_and_initialized():
+        return 0
+    return torch.distributed.get_rank()
+
+
+def is_main_process():
+    return get_rank() == 0
+
+
+def get_raw_model(model):
+    """Unwraps model from DataParallel or DistributedDataParallel."""
+    return model.module if hasattr(model, 'module') else model
+
+
+def setup_device_and_distributed():
+    """
+    Automatically detects environment: Single-GPU, Multi-GPU (DDP or DataParallel), or CPU.
+    """
+    # 1. Check if launched with torchrun / DDP environment variables
+    if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
+        rank = int(os.environ["RANK"])
+        world_size = int(os.environ["WORLD_SIZE"])
+        local_rank = int(os.environ["LOCAL_RANK"])
+        torch.cuda.set_device(local_rank)
+        torch.distributed.init_process_group(
+            backend="nccl", init_method="env://", world_size=world_size, rank=rank
+        )
+        device = torch.device(f"cuda:{local_rank}")
+        mode = "DDP"
+        gpu_count = world_size
+    elif torch.cuda.is_available():
+        gpu_count = torch.cuda.device_count()
+        if gpu_count > 1:
+            device = torch.device("cuda:0")
+            mode = "DataParallel"
+        else:
+            device = torch.device("cuda:0")
+            mode = "Single-GPU"
+    else:
+        device = torch.device("cpu")
+        mode = "CPU"
+        gpu_count = 0
+
+    if is_main_process():
+        print(f"\n🖥️  [Hardware Environment Detected]")
+        print(f"    - Execution Mode : {mode}")
+        print(f"    - Device         : {device}")
+        print(f"    - Available GPUs : {gpu_count}")
+        if gpu_count > 0:
+            for i in range(gpu_count):
+                print(f"      * GPU {i}: {torch.cuda.get_device_name(i)}")
+        print("=" * 60)
+
+    return device, mode
 
 
 def load_smiles_and_spectra(smiles_path, ir_path, raman_path=None):
@@ -41,10 +107,12 @@ def load_smiles_and_spectra(smiles_path, ir_path, raman_path=None):
         
         assert len(ir_tensor) == len(raman_tensor), "Sample count mismatch between IR and Raman tensors!"
         combined_spectra = torch.cat([ir_tensor, raman_tensor], dim=-1)
-        print(f"📊 Multi-modal data loaded: IR {tuple(ir_tensor.shape)} + Raman {tuple(raman_tensor.shape)} -> Combined {tuple(combined_spectra.shape)}")
+        if is_main_process():
+            print(f"📊 Multi-modal data loaded: IR {tuple(ir_tensor.shape)} + Raman {tuple(raman_tensor.shape)} -> Combined {tuple(combined_spectra.shape)}")
         return smiles, combined_spectra
 
-    print(f"📊 Single-modality data loaded: IR {tuple(ir_tensor.shape)}")
+    if is_main_process():
+        print(f"📊 Single-modality data loaded: IR {tuple(ir_tensor.shape)}")
     return smiles, ir_tensor
 
 
@@ -55,7 +123,8 @@ def get_lr_multiplier(epoch, warmup_epochs):
 
 
 def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
+    raw_model = get_raw_model(model)
+    return sum(p.numel() for p in raw_model.parameters() if p.requires_grad)
 
 
 class MultiModalDataset(Dataset):
@@ -96,13 +165,15 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
     load_smiles_ckpt, load_ir_ckpt = None, None
     target_output_dir = None
 
-    print(f"\n{'='*25} SOTA Comparison Auto Routing: [TASK: {task.upper()}] {'='*25}")
+    if is_main_process():
+        print(f"\n{'='*25} SOTA Comparison Auto Routing: [TASK: {task.upper()}] {'='*25}")
 
     # Task 1: QM9S IR-only Pre-training
     if task in ["qm9s_ir_only", "task1"]:
         target_output_dir = dir_qm9s_ir
-        print(f"--> [Task 1] QM9S IR-Only Pre-training. Training from scratch.")
-        print(f"--> Output directory: {target_output_dir}")
+        if is_main_process():
+            print(f"--> [Task 1] QM9S IR-Only Pre-training. Training from scratch.")
+            print(f"--> Output directory: {target_output_dir}")
 
     # Task 2: EB_CHONF Fine-tuning (Inherits ONLY from QM9S_ir_only)
     elif task in ["eb_chonf_finetuning", "eb_chonf", "task2"]:
@@ -110,16 +181,20 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
         s_ckpt, i_ckpt = check_weights(dir_qm9s_ir)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
-            print(f"--> [Task 2] Found QM9S_ir_only pre-trained weights! Loading from: {dir_qm9s_ir}")
+            if is_main_process():
+                print(f"--> [Task 2] Found QM9S_ir_only pre-trained weights! Loading from: {dir_qm9s_ir}")
         else:
-            print(f"--> [Task 2] No QM9S_ir_only weights found. Fine-tuning from scratch.")
-        print(f"--> Output directory: {target_output_dir}")
+            if is_main_process():
+                print(f"--> [Task 2] No QM9S_ir_only weights found. Fine-tuning from scratch.")
+        if is_main_process():
+            print(f"--> Output directory: {target_output_dir}")
 
     # Task 3: QM9S IR+Raman Pre-training
     elif task in ["qm9s_ir_raman", "task3"]:
         target_output_dir = dir_qm9s_ir_raman
-        print(f"--> [Task 3] QM9S IR+Raman Multi-modal Pre-training. Training from scratch.")
-        print(f"--> Output directory: {target_output_dir}")
+        if is_main_process():
+            print(f"--> [Task 3] QM9S IR+Raman Multi-modal Pre-training. Training from scratch.")
+            print(f"--> Output directory: {target_output_dir}")
 
     # Task 4: SDBS_CHONF IR+Raman Fine-tuning (Inherits ONLY from QM9S_ir_raman)
     elif task in ["sdbs_chonf_ir_raman_finetuning", "sdbs_chonf", "task4"]:
@@ -127,18 +202,22 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
         s_ckpt, i_ckpt = check_weights(dir_qm9s_ir_raman)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
-            print(f"--> [Task 4] Found QM9S_ir_raman pre-trained weights! Loading from: {dir_qm9s_ir_raman}")
+            if is_main_process():
+                print(f"--> [Task 4] Found QM9S_ir_raman pre-trained weights! Loading from: {dir_qm9s_ir_raman}")
         else:
-            print(f"--> [Task 4] No QM9S_ir_raman weights found. Fine-tuning from scratch.")
-        print(f"--> Output directory: {target_output_dir}")
+            if is_main_process():
+                print(f"--> [Task 4] No QM9S_ir_raman weights found. Fine-tuning from scratch.")
+        if is_main_process():
+            print(f"--> Output directory: {target_output_dir}")
 
     else:
-        # Fallback to configured output_dir
         target_output_dir = config['paths'].get('output_dir', dir_qm9s_ir)
-        print(f"--> Custom Task: Output directory set to: {target_output_dir}")
+        if is_main_process():
+            print(f"--> Custom Task: Output directory set to: {target_output_dir}")
 
     config['paths']['output_dir'] = target_output_dir
-    os.makedirs(target_output_dir, exist_ok=True)
+    if is_main_process():
+        os.makedirs(target_output_dir, exist_ok=True)
 
     return load_smiles_ckpt, load_ir_ckpt
 
@@ -149,17 +228,19 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
 def validate_model(smiles_model, ir_model, val_loader, device):
     smiles_model.eval()
     ir_model.eval()
+    raw_smiles_model = get_raw_model(smiles_model)
+
     running_loss = 0.0
     result_smiles_features = []
     result_ir_features = []
 
     with torch.no_grad():
-        for spectra_batch, smiles_batch in tqdm(val_loader, desc="Validating", unit="batch", leave=False):
+        for spectra_batch, smiles_batch in tqdm(val_loader, desc="Validating", unit="batch", leave=False, disable=not is_main_process()):
             spectra_tensor = spectra_batch.to(device)
 
-            tokenizer = smiles_model.smiles_tokenizer
+            tokenizer = raw_smiles_model.smiles_tokenizer
             encoded_smiles = [
-                tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
+                tokenizer.encode_plus(text=s, max_length=raw_smiles_model.smiles_maxlen, padding='max_length',
                                       truncation=True, return_tensors='pt') for s in smiles_batch
             ]
             input_ids = torch.cat([item['input_ids'] for item in encoded_smiles], dim=0).to(device)
@@ -167,13 +248,13 @@ def validate_model(smiles_model, ir_model, val_loader, device):
             lengths = attention_mask.sum(dim=1)
 
             with autocast():
-                smiles_features = smiles_model.encode((input_ids, attention_mask), lengths)
+                smiles_features = raw_smiles_model.encode((input_ids, attention_mask), lengths)
                 ir_features = ir_model(spectra_tensor)
                 result_smiles_features.append(smiles_features)
                 result_ir_features.append(ir_features)
 
-                t = torch.exp(smiles_model.t_prime)
-                b = smiles_model.bias
+                t = torch.exp(raw_smiles_model.t_prime)
+                b = raw_smiles_model.bias
                 logits = torch.matmul(ir_features, smiles_features.T) * t + b
                 n = logits.size(0)
                 labels = 2 * torch.eye(n).to(device) - torch.ones(n, n).to(device)
@@ -197,7 +278,7 @@ def validate_model(smiles_model, ir_model, val_loader, device):
 # ==========================================
 # Main Training Loop with Early Stopping
 # ==========================================
-def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device):
+def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device, train_sampler=None):
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
     num_epochs = config['training_params']['num_epochs']
@@ -215,18 +296,23 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
 
     training_losses, validation_losses, validation_recalls = [], [], []
 
+    raw_smiles_model = get_raw_model(smiles_model)
+
     for epoch in range(num_epochs):
+        if train_sampler and hasattr(train_sampler, "set_epoch"):
+            train_sampler.set_epoch(epoch)
+
         smiles_model.train()
         ir_model.train()
         running_loss = 0.0
-        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}", unit="batch")
+        train_loader_tqdm = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}", unit="batch", disable=not is_main_process())
 
         for spectra_batch, smiles_batch in train_loader_tqdm:
             spectra_tensor = spectra_batch.to(device)
 
-            tokenizer = smiles_model.smiles_tokenizer
+            tokenizer = raw_smiles_model.smiles_tokenizer
             encoded_smiles = [
-                tokenizer.encode_plus(text=s, max_length=smiles_model.smiles_maxlen, padding='max_length',
+                tokenizer.encode_plus(text=s, max_length=raw_smiles_model.smiles_maxlen, padding='max_length',
                                       truncation=True, return_tensors='pt') for s in smiles_batch
             ]
             input_ids = torch.cat([item['input_ids'] for item in encoded_smiles], dim=0).to(device)
@@ -235,10 +321,10 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
 
             optimizer.zero_grad()
             with autocast():
-                smiles_features = smiles_model.encode((input_ids, attention_mask), lengths)
+                smiles_features = raw_smiles_model.encode((input_ids, attention_mask), lengths)
                 ir_features = ir_model(spectra_tensor)
-                t = torch.exp(smiles_model.t_prime)
-                b = smiles_model.bias
+                t = torch.exp(raw_smiles_model.t_prime)
+                b = raw_smiles_model.bias
                 logits = torch.matmul(ir_features, smiles_features.T) * t + b
                 n = logits.size(0)
                 labels = 2 * torch.eye(n).to(device) - torch.ones(n, n).to(device)
@@ -254,44 +340,55 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
         epoch_loss = running_loss / len(train_loader.dataset)
         training_losses.append(epoch_loss)
 
-        # Validation phase
+        # Validation phase (evaluated on rank 0 or full dataset)
         val_loss, top_1_ratio = validate_model(smiles_model, ir_model, val_loader, device)
         validation_losses.append(val_loss)
         validation_recalls.append(top_1_ratio)
 
-        print(f"Epoch {epoch + 1}/{num_epochs} -> Train Loss: {epoch_loss:.4f} | Val Loss: {val_loss:.4f} | Val Recall@1: {top_1_ratio:.4f}")
+        if is_main_process():
+            print(f"Epoch {epoch + 1}/{num_epochs} -> Train Loss: {epoch_loss:.4f} | Val Loss: {val_loss:.4f} | Val Recall@1: {top_1_ratio:.4f}")
 
         # Update learning rate schedule
         (scheduler_warmup if epoch < warmup_epochs else scheduler_cosine).step()
 
-        # Check Early Stopping & Save Best Models
-        if top_1_ratio > best_val_ratio:
-            best_val_ratio = top_1_ratio
-            early_stop_counter = 0
-            torch.save(smiles_model.state_dict(), best_smiles_path)
-            torch.save(ir_model.state_dict(), best_ir_path)
-            print(f"  ✨ [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
+        # Check Early Stopping & Save Best Models (Only on main process)
+        if is_main_process():
+            if top_1_ratio > best_val_ratio:
+                best_val_ratio = top_1_ratio
+                early_stop_counter = 0
+                torch.save(get_raw_model(smiles_model).state_dict(), best_smiles_path)
+                torch.save(get_raw_model(ir_model).state_dict(), best_ir_path)
+                print(f"  ✨ [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
+            else:
+                early_stop_counter += 1
+                print(f"  ⚠️ [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
+
+            # Save training history JSON per epoch
+            history_data = {
+                "train_losses": training_losses,
+                "val_losses": validation_losses,
+                "val_recalls": validation_recalls
+            }
+            with open(os.path.join(output_dir, 'history.json'), 'w', encoding='utf-8') as f:
+                json.dump(history_data, f, indent=4)
+
+        # Broadcast early stopping decision if DDP
+        if is_dist_avail_and_initialized():
+            stop_tensor = torch.tensor([1 if early_stop_counter >= patience else 0], device=device)
+            torch.distributed.broadcast(stop_tensor, src=0)
+            if stop_tensor.item() == 1:
+                if is_main_process():
+                    print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
+                break
         else:
-            early_stop_counter += 1
-            print(f"  ⚠️ [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
+            if early_stop_counter >= patience:
+                print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
+                break
 
-        # Save training history JSON per epoch
-        history_data = {
-            "train_losses": training_losses,
-            "val_losses": validation_losses,
-            "val_recalls": validation_recalls
-        }
-        with open(os.path.join(output_dir, 'history.json'), 'w', encoding='utf-8') as f:
-            json.dump(history_data, f, indent=4)
-
-        # Trigger Early Stop Termination
-        if early_stop_counter >= patience:
-            print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
-            break
-
-    print('\n================ Training Summary ================')
-    print(f'Best Validation Recall@1: {best_val_ratio:.4f}')
-    print(f'Model weights & history saved to: {output_dir}')
+    if is_main_process():
+        print('\n================ Training Summary ================')
+        print(f'Best Validation Recall@1: {best_val_ratio:.4f}')
+        print(f'Model weights & history saved to: {output_dir}')
 
 
 def main():
@@ -311,47 +408,60 @@ def main():
         if path and not os.path.isabs(path):
             config['paths'][key] = os.path.join(PROJECT_ROOT, path)
 
-    # Auto-resolve SOTA comparison checkpoints and output directories
+    # 1. Setup device & multi-GPU environment
+    device, mode = setup_device_and_distributed()
+
+    # 2. Auto-resolve SOTA comparison checkpoints and output directories
     auto_smiles_ckpt, auto_ir_ckpt = resolve_sota_checkpoints_and_paths(config, PROJECT_ROOT)
 
-    # Setup device
-    if config['training_params']['device'] == 'auto':
-        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    else:
-        device = torch.device(config['training_params']['device'])
-    print(f"Using device: {device}")
-
-    # Initialize models
-    print("Initializing models...")
+    # 3. Initialize models
+    if is_main_process():
+        print("Initializing models...")
     ir_model_config = config['model_params']['ir_model']
     IR_model = IRModel(**ir_model_config)
     smiles_model_config = config['model_params']['smiles_model']
     Smiles_Model = SmilesModel(roberta_model_path=None, roberta_tokenizer_path=config['paths']['tokenizer'],
                                **smiles_model_config)
 
-    print(f"SmilesModel Parameters: {count_parameters(Smiles_Model)}")
-    print(f"IR_model Parameters: {count_parameters(IR_model)}")
+    if is_main_process():
+        print(f"SmilesModel Parameters: {count_parameters(Smiles_Model)}")
+        print(f"IR_model Parameters: {count_parameters(IR_model)}")
 
     IR_model.to(device)
     Smiles_Model.to(device)
 
-    # Checkpoint loading priority: Config explicit path > Auto-resolved SOTA path
+    # 4. Checkpoint loading priority: Config explicit path > Auto-resolved SOTA path
     final_ir_ckpt = config['paths'].get('ir_model_check_point') or auto_ir_ckpt
     if final_ir_ckpt and os.path.exists(final_ir_ckpt):
         IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location=device))
-        print(f"✅ Loaded IR_model checkpoint from: {final_ir_ckpt}")
+        if is_main_process():
+            print(f"✅ Loaded IR_model checkpoint from: {final_ir_ckpt}")
     else:
-        print("ℹ️ Training IR_model from scratch.")
+        if is_main_process():
+            print("ℹ️ Training IR_model from scratch.")
 
     final_smiles_ckpt = config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
     if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
         Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location=device))
-        print(f"✅ Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
+        if is_main_process():
+            print(f"✅ Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
     else:
-        print("ℹ️ Training Smiles_Model from scratch.")
+        if is_main_process():
+            print("ℹ️ Training Smiles_Model from scratch.")
 
-    # Load datasets (supports optional Raman for multi-modal concat)
-    print("Loading datasets...")
+    # 5. Multi-GPU Model Wrapping (DP or DDP)
+    if mode == "DDP":
+        local_rank = int(os.environ["LOCAL_RANK"])
+        IR_model = nn.parallel.DistributedDataParallel(IR_model, device_ids=[local_rank], find_unused_parameters=True)
+        # Smiles_Model uses custom encode method, wrapped with DDP
+        Smiles_Model = nn.parallel.DistributedDataParallel(Smiles_Model, device_ids=[local_rank], find_unused_parameters=True)
+    elif mode == "DataParallel":
+        IR_model = nn.DataParallel(IR_model)
+        Smiles_Model = nn.DataParallel(Smiles_Model)
+
+    # 6. Load datasets (supports optional Raman for multi-modal concat)
+    if is_main_process():
+        print("Loading datasets...")
     train_raman = config['paths'].get('train_raman')
     val_raman = config['paths'].get('val_raman')
 
@@ -366,20 +476,42 @@ def main():
     val_dataset = MultiModalDataset(spectra_val, smiles_val)
 
     dl_params = config['dataloader_params']
-    train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False)
+    train_sampler = DistributedSampler(train_dataset, shuffle=True) if mode == "DDP" else None
 
-    print(f"Training samples  : {len(train_dataset)}")
-    print(f"Validation samples: {len(val_dataset)}")
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=dl_params['batch_size'], 
+        shuffle=(train_sampler is None),
+        sampler=train_sampler,
+        num_workers=dl_params.get('num_workers', 0),
+        pin_memory=True if torch.cuda.is_available() else False
+    )
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=dl_params['batch_size'], 
+        shuffle=False,
+        num_workers=dl_params.get('num_workers', 0),
+        pin_memory=True if torch.cuda.is_available() else False
+    )
 
-    # Setup optimizer
+    if is_main_process():
+        print(f"Training samples  : {len(train_dataset)}")
+        print(f"Validation samples: {len(val_dataset)}")
+
+    # 7. Setup optimizer
     opt_params = config['optimizer_params']
-    optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), 
-                      lr=opt_params['learning_rate'],
-                      weight_decay=opt_params['weight_decay'])
+    optimizer = AdamW(
+        list(Smiles_Model.parameters()) + list(IR_model.parameters()), 
+        lr=opt_params['learning_rate'],
+        weight_decay=opt_params['weight_decay']
+    )
 
-    # Start training loop
-    train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device)
+    # 8. Start training loop
+    train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device, train_sampler=train_sampler)
+
+    # Clean up distributed process group if needed
+    if is_dist_avail_and_initialized():
+        torch.distributed.destroy_process_group()
 
 
 if __name__ == '__main__':
