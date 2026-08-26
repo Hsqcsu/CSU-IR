@@ -24,7 +24,7 @@ def extract_chonf_data(splits=None):
 
     # Navigate up one level to CSU-IR/ and locate CSU-IR/data/EB_dataset/
     csu_ir_dir = os.path.dirname(script_dir)
-    data_base_dir = os.path.join(csu_ir_dir, "data", "EB_dataset")
+    data_base_dir = os.path.join(csu_ir_dir, "data", "Multi-staged_training_data", "Experimental_Benching_data", "EB")
 
     # Input directory (data with reconstructed NIST IR)
     input_dir = os.path.join(data_base_dir, "data_with_NIST_IR")
