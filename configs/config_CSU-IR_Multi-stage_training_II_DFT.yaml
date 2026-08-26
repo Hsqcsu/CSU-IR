@@ -8,10 +8,10 @@ paths:
   # Data paths
   train_smiles: data/Multi-staged_training_data/Density functional simulation data/train_smiles.txt
   train_ir: data/Multi-staged_training_data/Density functional simulation data/train_ir.pt
-  val_smiles: data/Multi-staged_training_data/Density functional simulation data/al_smiles.txt
+  val_smiles: data/Multi-staged_training_data/Density functional simulation data/val_smiles.txt
   val_ir: data/Multi-staged_training_data/Density functional simulation data/val_ir.pt
   test_smiles: data/Multi-staged_training_data/Density functional simulation data/test_smiles.txt
-  test_ir: data/Multi-staged_training_data/Density functional simulation data/Qtest_ir.pt
+  test_ir: data/Multi-staged_training_data/Density functional simulation data/test_ir.pt
 
 model_params:
   smiles_model:
