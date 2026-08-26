@@ -101,7 +101,7 @@ You can initiate training scripts using a configuration file. All configs are lo
 > 
 > It is strongly recommended to run this script in an IDE terminal (like PyCharm's) instead of the standard system terminal to avoid potential environment-related issues.
 > 
-> If you use the DDP mode, 
+> The `batch_size` specified in the configuration files is configured on a **per-GPU basis**, meaning the effective total batch size will scale with the number of devices in DDP mode. Currently, the learning rate and batch size are unified across configs. If you experience suboptimal performance during multi-GPU training, please consider dividing the per-GPU batch size by the number of GPUs or tuning the learning rate. 
 
 #### Multi-Stage Training (Single GPU / DDP)
 
@@ -121,9 +121,9 @@ All stages support both **Single-GPU** and **Multi-GPU (DDP)** training. Replace
 - **Stage-II (DFT):** `configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml`
 - **Stage-III (EXP):** `configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml`
 
-The training config and script of CSU-IR for SOTA comparison is also privided. 
+The training configuration and script of CSU-IR for SOTA comparison are also provided, supporting both single-GPU and multi-GPU (DDP) training using the same command format as above.
 
-The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory.
+The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory. Given that the training script relies on validation metrics over the PS-derived database, which is not publicly available, please contact us if you require access.
 
 ### 4. Testing and Inference
 
@@ -160,7 +160,7 @@ The GUI includes:
 
 The experiments during Stage-I and Stage-II were conducted on a single NVIDIA GPU (RTX 4090). 
 - **Stage-I (MD Data)**: ~33 hours
-- **Stage-II (DFT Data)**: ~3 hours
+- **Stage-II (DFT Data)**: ~8 hours
 The Stage-III experiment was optimized using three NVIDIA RTX 6000 Ada GPUs. The time required for a single complete experiment is
 - **Stage-III (EXP Data)**: ~10 minutes
 
