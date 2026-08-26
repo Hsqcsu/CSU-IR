@@ -1,4 +1,24 @@
-# Configuration for CSU-IR SOTA_Comparison (Experimental Benchmarking Data Finetuning - EB_CHONF)
+# ==============================================================================
+# Configuration for SOTA Comparison: Task 2 - EB_CHONF Fine-tuning
+#
+# Inheritance Rule:
+#   - Automatically checks and inherits pre-trained weights from:
+#     'check_points/SOTA_Comparison/QM9S_ir_only/'
+#   - If no weights found, fine-tunes from scratch.
+# ==============================================================================
+
+paths:
+  # Base output directory (The script automatically saves results to 'EB_CHONF_finetuning')
+  output_dir: check_points/SOTA_Comparison
+  tokenizer: model/tokenizer-smiles-roberta-1e_new
+
+  # EB_CHONF Data paths
+  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/EB_CHONF/train_smiles.txt
+  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/EB_CHONF/train_ir.pt
+  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/EB_CHONF/val_smiles.txt
+  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/EB_CHONF/val_ir.pt
+  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/EB_CHONF/test_smiles.txt
+  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/EB_CHONF/test_ir.pt
 
 model_params:
   smiles_model:
@@ -13,9 +33,9 @@ model_params:
     no_txtnorm: false
 
 training_params:
-  stage: EXP          
-  num_epochs: 1000    
-  patience: 15       
+  task: EB_CHONF_finetuning   # Triggers automatic QM9S_ir_only weight loading & path routing
+  num_epochs: 1000
+  patience: 15
   device: auto
 
 dataloader_params:
@@ -23,7 +43,7 @@ dataloader_params:
   num_workers: 0
 
 optimizer_params:
-  learning_rate: 2.6e-4  
+  learning_rate: 2.6e-4
   weight_decay: 1.0e-1
 
 scheduler_params:
