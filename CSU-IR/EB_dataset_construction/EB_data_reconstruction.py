@@ -1,21 +1,18 @@
-"""NIST IR Two-Stage High-Performance Reconstruction & Consistency Verification Script
+"""NIST IR Two-Stage High-Performance Reconstruction Script
 
 Architecture Overview:
-[Stage 1: Full Batch Pure Download]
+[Stage 1: Batch Download NIST JDX Files]
   - 1.0s request interval with strict timeout protection.
-  - Automatically scans for missing JDX files with multi-round resume-on-break capability until 100% downloaded.
-[Stage 2: Local Offline High-Speed Batch Processing]
+  - Automatically scans for missing JDX files with multi-round resume capability until all required files are downloaded.
+[Stage 2: Local Offline Batch Processing & None Replacement]
   - Operates completely offline: performs cubic spline interpolation, absorbance conversion, and tensor assembly.
-  - Saves final outputs into the designated reconstruction directory.
-[Stage 3: End-to-End Consistency Verification]
-  - Compares line-by-line SMILES and numerical IR spectral values against ground-truth benchmark datasets.
+  - Replaces placeholders in the original dataset and saves reconstructed outputs ({split}_ir.pt, {split}_labels.txt, {split}_smiles.txt) into the designated directory.
 """
 
 import os
 import shutil
 import time
 import numpy as np
-from rdkit import Chem
 import requests
 from requests.adapters import HTTPAdapter
 from scipy.interpolate import CubicSpline
@@ -60,20 +57,24 @@ def create_persistent_session():
 
 GLOBAL_SESSION = create_persistent_session()
 
-# ================= 2. Path Configuration =================
-# A. Input: Directory containing datasets with None IR and copied annotated label files
-INPUT_NO_NIST_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_reconstrction\data_without_NIST_IR_new_sample_ids_file"
+# ================= 2. Relative Path Configuration =================
+# Locate the current script directory: CSU-IR/EB_dataset_construction/
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# B. Cache: Directory for storing downloaded raw JDX files
-JDX_CACHE_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_reconstrction\ir_redownload_new_sample_ids_file"
+# Navigate up one level to CSU-IR/ and locate CSU-IR/data/EB_dataset/
+CSU_IR_DIR = os.path.dirname(SCRIPT_DIR)
+DATA_BASE_DIR = os.path.join(CSU_IR_DIR, "data", "EB_dataset")
+
+# A. Input: Directory containing datasets with placeholder None IR (data/EB_dataset/data_without_NIST_IR)
+INPUT_NO_NIST_DIR = os.path.join(DATA_BASE_DIR, "data_without_NIST_IR")
+
+# B. Cache: Directory for caching downloaded raw JDX files (data/EB_dataset/NIST_IR_raw_file_download)
+JDX_CACHE_DIR = os.path.join(DATA_BASE_DIR, "NIST_IR_raw_file_download")
 os.makedirs(JDX_CACHE_DIR, exist_ok=True)
 
-# C. Output: Directory for saving fully reconstructed datasets
-OUTPUT_RECON_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_reconstrction\data_reconstructioned_new_sample_ids_file"
+# C. Output: Directory for saving reconstructed datasets (data/EB_dataset/data_with_NIST_IR)
+OUTPUT_RECON_DIR = os.path.join(DATA_BASE_DIR, "data_with_NIST_IR")
 os.makedirs(OUTPUT_RECON_DIR, exist_ok=True)
-
-# D. Benchmark: Directory containing ground-truth baseline data for verification
-BENCHMARK_DIR = r"F:\Spectrum\1122_after\model\ESA_model_sigmoid\20250530_esa_ir_CNN_transformer\_20260602_MG_training\data\data_process\optimization\exp_20260817\0_1_2_4_5_6_8_9_16_splitted_and_augmented_data_delete_299"
 
 SPLITS = ["train", "val", "test"]
 
@@ -161,7 +162,7 @@ def ensure_all_jdx_downloaded(split_name, nist_sample_ids):
             time.sleep(2.0)
 
 
-# ================= 4. Stage 2: Offline Batch Processing & Interpolation Functions =================
+# ================= 4. Stage 2: Offline Batch Processing & Interpolation =================
 def parse_jdx_spectra(file_path):
     x_raw, y_raw = [], []
     xunits = "WAVENUMBERS"
@@ -314,14 +315,11 @@ def process_local_jdx_file(sample_id):
 
 
 # ================= 5. Dataset Reconstruction Pipeline =================
-def load_annotated_source_records(split_name):
-    """Reads (source_label, sample_id) pairs line by line directly from INPUT_NO_NIST_DIR."""
-    file_path = os.path.join(
-        INPUT_NO_NIST_DIR,
-        f"{split_name}_source_with_sample_ids_annotated.txt",
-    )
+def load_annotated_labels(split_name):
+    """Reads (source_label, sample_id) pairs line by line from {split}_labels.txt."""
+    file_path = os.path.join(INPUT_NO_NIST_DIR, f"{split_name}_labels.txt")
     if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Annotated source label file not found in input directory: {file_path}")
+        raise FileNotFoundError(f"Label file not found: {file_path}")
 
     records = []
     with open(file_path, "r", encoding="utf-8") as f:
@@ -340,30 +338,17 @@ def reconstruct_subset(split_name):
     print(f"▶ Reconstructing Subset: [{split_name.upper()} Set]")
     print("=" * 75)
 
-    desc_name = (
-        f"{split_name}_description_augmented.txt"
-        if os.path.exists(
-            os.path.join(
-                INPUT_NO_NIST_DIR, f"{split_name}_description_augmented.txt"
-            )
-        )
-        else f"{split_name}_description.txt"
-    )
-
-    src_desc = os.path.join(INPUT_NO_NIST_DIR, desc_name)
     src_ir = os.path.join(INPUT_NO_NIST_DIR, f"{split_name}_ir.pt")
-    src_annotated = os.path.join(
-        INPUT_NO_NIST_DIR,
-        f"{split_name}_source_with_sample_ids_annotated.txt",
-    )
+    src_labels = os.path.join(INPUT_NO_NIST_DIR, f"{split_name}_labels.txt")
+    src_smiles = os.path.join(INPUT_NO_NIST_DIR, f"{split_name}_smiles.txt")
 
-    source_records = load_annotated_source_records(split_name)
+    source_records = load_annotated_labels(split_name)
     ir_list = torch.load(src_ir, map_location="cpu")
 
     total_count = len(source_records)
     assert (
         len(ir_list) == total_count
-    ), f"Mismatch in sample counts! Source records: {total_count}, IR list: {len(ir_list)}"
+    ), f"Mismatch in sample counts! Labels: {total_count}, IR list: {len(ir_list)}"
 
     # Extract all NIST sample IDs
     nist_sample_ids = [
@@ -375,9 +360,9 @@ def reconstruct_subset(split_name):
     # --- Stage 1: Batch Download ---
     ensure_all_jdx_downloaded(split_name, nist_sample_ids)
 
-    # --- Stage 2: Local High-Speed Batch Processing & Filling ---
+    # --- Stage 2: Local Batch Processing & Placeholder Replacement ---
     print(
-        f"\n⚡ [Stage 2: Local Offline Batch Processing] Parsing and generating IR tensors..."
+        f"\n⚡ [Stage 2: Local Offline Batch Processing] Parsing and replacing IR tensors..."
     )
 
     parsed_cache = {}
@@ -400,139 +385,44 @@ def reconstruct_subset(split_name):
                 else torch.tensor(curr_ir, dtype=torch.float32)
             )
 
-    # Stack into a single full Tensor and save
+    # Stack into a single full Tensor
     reconstructed_tensor = torch.stack(reconstructed_ir_list, dim=0)
 
-    dst_desc = os.path.join(OUTPUT_RECON_DIR, desc_name)
+    # Define output file destinations
     dst_ir = os.path.join(OUTPUT_RECON_DIR, f"{split_name}_ir.pt")
-    dst_annotated_source = os.path.join(
-        OUTPUT_RECON_DIR,
-        f"{split_name}_source_with_sample_ids_annotated.txt",
-    )
+    dst_labels = os.path.join(OUTPUT_RECON_DIR, f"{split_name}_labels.txt")
+    dst_smiles = os.path.join(OUTPUT_RECON_DIR, f"{split_name}_smiles.txt")
 
+    # Save reconstructed tensor and copy label/smiles text files
     torch.save(reconstructed_tensor, dst_ir)
-    shutil.copy2(src_desc, dst_desc)
-    shutil.copy2(src_annotated, dst_annotated_source)
+    shutil.copy2(src_labels, dst_labels)
+    if os.path.exists(src_smiles):
+        shutil.copy2(src_smiles, dst_smiles)
 
     print(
-        f"✅ [{split_name.upper()} Set] Successfully reconstructed and exported to: {OUTPUT_RECON_DIR}"
+        f"✅ [{split_name.upper()} Set] Successfully reconstructed and saved to: {OUTPUT_RECON_DIR}"
     )
     print(f"    - Final IR Tensor Shape: {reconstructed_tensor.shape}")
 
 
-# ================= 6. Consistency Verification Functions =================
-def read_smiles(filepath):
-    with open(filepath, "r", encoding="utf-8") as f:
-        lines = f.readlines()
-    data_lines = (
-        lines[1:]
-        if ("\t" in lines[0] or " " in lines[0])
-        and any(Chem.MolFromSmiles(p) for p in lines[1].split())
-        and not any(Chem.MolFromSmiles(p) for p in lines[0].split())
-        else lines
-    )
-
-    res = []
-    for l in data_lines:
-        parts = l.strip().split("\t") if "\t" in l else l.strip().split()
-        res.append(parts[0] if parts else "")
-    return res
-
-
-def verify_consistency(split_name):
-    print("\n" + "=" * 75)
-    print(
-        f"▶ [Stage 3] Verifying data consistency with benchmark: [{split_name.upper()} Set]"
-    )
-    print("=" * 75)
-
-    recon_ir_path = os.path.join(OUTPUT_RECON_DIR, f"{split_name}_ir.pt")
-    bench_ir_path = os.path.join(BENCHMARK_DIR, f"{split_name}_ir.pt")
-
-    desc_name = (
-        f"{split_name}_description_augmented.txt"
-        if os.path.exists(
-            os.path.join(
-                OUTPUT_RECON_DIR, f"{split_name}_description_augmented.txt"
-            )
-        )
-        else f"{split_name}_description.txt"
-    )
-    recon_desc_path = os.path.join(OUTPUT_RECON_DIR, desc_name)
-    bench_desc_path = os.path.join(BENCHMARK_DIR, desc_name)
-
-    # 1. SMILES Comparison
-    recon_smi = read_smiles(recon_desc_path)
-    bench_smi = read_smiles(bench_desc_path)
-
-    assert len(recon_smi) == len(bench_smi), "Mismatch in SMILES row counts!"
-    smi_match = sum(1 for a, b in zip(recon_smi, bench_smi) if a == b)
-
-    # 2. IR Numerical Spectral Comparison
-    recon_ir = torch.load(recon_ir_path, map_location="cpu").float()
-    bench_ir = torch.load(bench_ir_path, map_location="cpu").float()
-
-    assert (
-        recon_ir.shape == bench_ir.shape
-    ), f"IR Tensor dimension mismatch: {recon_ir.shape} vs {bench_ir.shape}"
-
-    abs_diff = torch.abs(recon_ir - bench_ir)
-    max_ae = torch.max(abs_diff).item()
-    mse = torch.mean((recon_ir - bench_ir) ** 2).item()
-    perfect_match_count = torch.sum(
-        torch.all(
-            torch.isclose(recon_ir, bench_ir, atol=1e-4, rtol=1e-4), dim=1
-        )
-    ).item()
-
-    total_len = len(recon_ir)
-    print(f"[{split_name.upper()} Verification Statistics]")
-    print(f"  - Total Samples                : {total_len}")
-    print(
-        f"  - SMILES 100% Identical        : {smi_match}/{total_len} ({(smi_match / total_len) * 100:.2f}%)"
-    )
-    print(
-        f"  - IR Exact Match (w/ Tolerance): {perfect_match_count}/{total_len} ({(perfect_match_count / total_len) * 100:.2f}%)"
-    )
-    print(f"  - IR Max Absolute Error        : {max_ae:.6e}")
-    print(f"  - IR Mean Squared Error (MSE)  : {mse:.2e}")
-
-    if smi_match == total_len and max_ae < 1e-3:
-        print(
-            f"  ✨ Conclusion: [{split_name.upper()} Set] 100% element-wise match with the benchmark dataset!"
-        )
-    else:
-        print(
-            f"  ⚠️ Conclusion: [{split_name.upper()} Set] Minor discrepancies detected. Please inspect the metrics above."
-        )
-
-
-# ================= 7. Main Execution Entrypoint =================
+# ================= 6. Main Execution Entrypoint =================
 def main():
     print(
-        "🚀 Launching NIST IR Two-Stage High-Performance Reconstruction & Verification Pipeline (Download -> Offline Batch Processing)..."
+        "🚀 Launching NIST IR Reconstruction Pipeline (Batch Download -> Processing -> None Replacement)..."
     )
     print(
         f"Network Config: Safe Delay {SAFE_DELAY}s | Strict {REQUEST_TIMEOUT[0]+REQUEST_TIMEOUT[1]}s Circuit Breaking | Auto-Resume"
     )
-    print(f"Input Data Directory (with targets) : {INPUT_NO_NIST_DIR}")
-    print(f"JDX Cache Directory                 : {JDX_CACHE_DIR}")
-    print(f"Output Reconstruction Directory     : {OUTPUT_RECON_DIR}")
-    print(f"Benchmark Reference Directory       : {BENCHMARK_DIR}")
+    print(f"Input Data Directory            : {INPUT_NO_NIST_DIR}")
+    print(f"JDX Cache Directory             : {JDX_CACHE_DIR}")
+    print(f"Output Reconstruction Directory : {OUTPUT_RECON_DIR}")
 
-    # 1. Process Train -> Val -> Test sequentially
+    # Process Train -> Val -> Test sequentially
     for split in SPLITS:
         reconstruct_subset(split)
 
-    # 2. Verify consistency for Train -> Val -> Test against benchmark
-    print("\n" + "#" * 75)
-    print("📋 Starting full dataset consistency verification...")
-    print("#" * 75)
-    for split in SPLITS:
-        verify_consistency(split)
-
     print("\n" + "=" * 75)
-    print("🎉 All tasks completed successfully! Datasets are 100% reconstructed and verified.")
+    print("🎉 All tasks completed successfully! All datasets are fully reconstructed.")
     print("=" * 75)
 
 
