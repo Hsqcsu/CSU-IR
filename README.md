@@ -66,7 +66,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 **Step 1:** Download the EB dataset (including the smiles txt file, compound labels txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository (Stage III- EXP / EB Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20III-%20EXP/EB)**.
 
-**Step 2:** Put all the downloaded files into our filefolder[`CSU-IR/data/EB_dataset/data_without_NIST_IR/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/EB_dataset/data_without_NIST_IR).
+**Step 2:** Put all the downloaded files into our filefolder[`CSU-IR/data/Multi-staged_training_data/Experimental_Benching_data/EB/data_without_NIST_IR/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/Multi-staged_training_data/Experimental_Benching_data/EB/data_without_NIST_IR).
 
 **Step 3:** Run the data_reconstruction script [`CSU-IR/EB_dataset_construction/EB_data_reconstruction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction/EB_data_reconstruction.py). 
 
