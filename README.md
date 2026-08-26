@@ -103,7 +103,7 @@ You can initiate training scripts using a configuration file. All configs are lo
 > 
 > If you use the DDP mode, 
 
-### Multi-Stage Training (Single GPU / DDP)
+#### Multi-Stage Training (Single GPU / DDP)
 
 All stages support both **Single-GPU** and **Multi-GPU (DDP)** training. Replace `<CONFIG_PATH>` with the corresponding configuration file:
 
