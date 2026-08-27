@@ -4,7 +4,7 @@
 
 paths:
   # Output directory for saving checkpoints and evaluation logs
-  output_dir: check_points/PS_derivative_finetuning
+  output_dir: check_points/PS_finetuned
   tokenizer: model/tokenizer-smiles-roberta-1e_new
 
   # Initial Pre-trained weights to load (Stage III EXP / MD_DFT_EXP)
