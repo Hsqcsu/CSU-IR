@@ -2,7 +2,7 @@
 
 Architecture Overview:
 [Stage 1: Batch Download NIST JDX Files]
-  - 1.0s request interval with strict timeout protection.
+  - 2.0s request interval with relaxed timeout protection and proxy support.
   - Automatically scans for missing JDX files with multi-round resume capability until all required files are downloaded.
 [Stage 2: Local Offline Batch Processing & None Replacement]
   - Operates completely offline: performs cubic spline interpolation, absorbance conversion, and tensor assembly.
@@ -21,20 +21,14 @@ from tqdm import tqdm
 from urllib3.exceptions import InsecureRequestWarning
 
 # ================= 1. Network & Connection Pool Configuration =================
-USE_PROXY = False
-
-if not USE_PROXY:
-    os.environ.pop("HTTP_PROXY", None)
-    os.environ.pop("HTTPS_PROXY", None)
-    os.environ.pop("http_proxy", None)
-    os.environ.pop("https_proxy", None)
-
+# Disable SSL certificate verification warnings
 os.environ["PYTHONHTTPSVERIFY"] = "0"
 os.environ["CURL_CA_BUNDLE"] = ""
 requests.packages.urllib3.disable_warnings(category=InsecureRequestWarning)
 
-SAFE_DELAY = 1.0
-REQUEST_TIMEOUT = (3.0, 7.0)
+# Request delay and relaxed timeout configuration
+SAFE_DELAY = 1.3
+REQUEST_TIMEOUT = (10.0, 25.0)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -46,7 +40,8 @@ HEADERS = {
 def create_persistent_session():
     session = requests.Session()
     session.headers.update(HEADERS)
-    session.trust_env = False
+    # Enable system environment proxies (HTTP_PROXY / HTTPS_PROXY)
+    session.trust_env = True
     adapter = HTTPAdapter(
         pool_connections=20, pool_maxsize=20, max_retries=0
     )
