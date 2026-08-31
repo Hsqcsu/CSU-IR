@@ -62,7 +62,7 @@ pip install -r requirements/requirements_local.txt
 ### 2. Data & Checkpoints Preparation 
 #### 2.1 EB dataset Construction
 
-The complete dataset with identical splits can be fully reproduced locally. Please follow the steps.
+The complete dataset with identical splits can be fully reproduced locally. Please follow the steps. 
 
 **Step 1:** Download the EB dataset (including the smiles txt file, compound labels txt file and ir pt file) without NIST IR data from **[Download Hub: Hugging Face Repository (Stage III- EXP / EB Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20III-%20EXP/EB)**.
 
@@ -72,7 +72,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 > [!NOTE]
 >
->The whole construction will take ~8 hours，brief hangs are expected during the process.
+>This process takes approximately 11 hours. A stalled progress bar is normal, and execution should not be manually terminated. If the process terminates unexpectedly, check the network connection and rerun the script; the system will automatically resume from the point of interruption without duplicating completed tasks. The workflow is complete once the terminal displays 'All tasks successfully completed!'.
 >
 >The EB_CHONF, PS subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The experimental data for the E2S subset are based on EB_CHONF, which needs to be obtained from EB first. 
 
