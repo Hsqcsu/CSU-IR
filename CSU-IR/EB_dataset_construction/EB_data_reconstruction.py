@@ -417,7 +417,7 @@ def main():
         reconstruct_subset(split)
 
     print("\n" + "=" * 75)
-    print("🎉 All tasks completed successfully! All datasets are fully reconstructed.")
+    print("🎉 All tasks successfully completed!")
     print("=" * 75)
 
 
