@@ -1,8 +1,8 @@
-# **From spectra to structures with interpretable retrieval at 100-million scale**
+# **Interpretable spectra-to-structure retrieval scales molecular identification to 100 million compounds**
 
 [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Spaces-Demo-blue.svg)](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)
 
-This is the official code repository for our paper, **"From spectra to structures with interpretable retrieval at 100-million scale"**.
+This is the official code repository for our paper, **"Interpretable spectra-to-structure retrieval scales molecular identification to 100 million compounds"**.
 
 We introduce **CSU-IR**, a novel deep learning framework designed for high-precision unknown-compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
 
