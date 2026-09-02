@@ -2,7 +2,7 @@
    Usage Guide
 ================
 
-This guide provides several ways to use and explore the `CSU-IR project <https://github.com/Hsqcsu/CSU-IR/tree/main>`_. , from quick online demos to full local setup and training.
+This guide provides several ways to use and explore the `CSU-IR project <https://github.com/Hsqcsu/CSU-IR/tree/main>`_, from quick online demos to full local setup, training, and 100-Million compound retrieval.
 
 .. contents::
    :local:
@@ -11,18 +11,18 @@ This guide provides several ways to use and explore the `CSU-IR project <https:/
 Step 1: Quick Start with our Web Service 
 ----------------------------------------
 
-For a quick and easy way to use the model without any installation, you can use our deployed web service.
-This is for PS retrieval or general compound retrieval in small libraries or custom libraries.
+For a quick and easy way to use the model without any local installation, you can use our deployed open-access web service.
+This service supports PS retrieval, general compound retrieval in small libraries (e.g., NIST ~10k), and custom user-provided libraries.
 
-* **Try the Web Demo**: `CSU-IR Web Service <https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web>`_
+* **Try the Web Demo**: `CSU-IR Web Service on Hugging Face Spaces <https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web>`_
 
 Step 2: Interactive Exploration with Google Colab
 -------------------------------------------------
 
-Use our pre-configured Google Colab notebooks to check results or perform training in the cloud with free GPU resources. Click on the badges to open the notebooks directly in Google Colab.
+Use our pre-configured Google Colab notebooks to experience our models instantly in the cloud with free GPU resources. Dependencies and data downloads are handled automatically.
 
 Testing Notebooks
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~
 
 .. list-table::
    :widths: 25 45 20
@@ -36,8 +36,9 @@ Testing Notebooks
      - .. image:: https://colab.research.google.com/assets/colab-badge.svg
           :target: https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/test_CSU_IR_in_colab.ipynb
           :alt: Open In Colab
+
 Training Notebooks
-~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
 
 .. list-table::
    :widths: 25 45 20
@@ -46,8 +47,8 @@ Training Notebooks
    * - Notebook
      - Description
      - Link
-   * - **Train CSU-IR Model**
-     - Train the CSU-IR model with DFT data
+   * - **Train CSU-IR**
+     - Train the CSU-IR model with DFT data.
      - .. image:: https://colab.research.google.com/assets/colab-badge.svg
           :target: https://colab.research.google.com/github/Hsqcsu/CSU-IR/blob/main/colab/train_CSU_IR_in_colab.ipynb
           :alt: Open In Colab
@@ -56,87 +57,89 @@ Training Notebooks
 Step 3: Full Local Setup and Training
 -------------------------------------
 
-For advanced use, such as custom training or 100-Million-library-Retrieval, follow these steps to set up the project on your local machine.
+For advanced use, such as custom multi-stage training or local testing, follow these steps to set up the project on your local machine.
 
-Prerequisites
-~~~~~~~~~~~~~
-
-1.  **Install Anaconda**:
-    We recommend using Conda to manage Python environments. If you don't have it, download and install it from the `Anaconda official website <https://www.anaconda.com/products/distribution>`_.
-
-2.  **Prepare an IDE**:
-    An Integrated Development Environment (IDE) like `PyCharm <https://www.jetbrains.com/pycharm/>`_ or `Visual Studio Code <https://code.visualstudio.com/>`_ is highly recommended for a better development experience.
-
-Installation and Environment Setup
+Prerequisites & Environment Setup
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-First, open your terminal (Anaconda Prompt on Windows).
-
-**1. Clone the Repository**
+1. **Clone the Repository**
 
 .. code-block:: bash
 
    git clone https://github.com/Hsqcsu/CSU-IR.git
+   cd CSU-IR
 
-**2. Create and Activate the Conda Environment**
+2. **Create and Activate the Conda Environment**
 
 .. code-block:: bash
 
    conda create --name CSU-IR python=3.11.9
    conda activate CSU-IR
 
-**3. Install Required Packages**
+3. **Install Required Packages**
 
 .. code-block:: bash
 
-   cd CSU-IR
    pip install -r requirements/requirements_local.txt
+
+Data & Checkpoints Preparation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. note::
+   The multi-stage pretraining data, candidate libraries, and trained model weights are hosted on `Hugging Face Repository <https://huggingface.co/Hsqcsu/CSU-IR>`_.
+
+   * Ensure training data and checkpoints are downloaded and placed into the corresponding directories as specified in the configuration files (in ``configs/``) before running local scripts.
+   * For the **EB dataset construction**, please refer to the detailed reconstruction pipeline and scripts in ``CSU-IR/EB_dataset_construction/``.
 
 Local Training
 ~~~~~~~~~~~~~~
 
+All stages support both **Single-GPU** and **Multi-GPU (DDP)** training. 
+
 .. important::
-   **Download Datasets First!**
+   * It is strongly recommended to run training scripts in an IDE terminal (like PyCharm / VS Code) to avoid potential environment-related issues.
+   * The ``batch_size`` specified in the configuration files is configured on a **per-GPU basis**.
 
-   Before you can start training, you must download the required datasets from our Hugging Face repository: `CSU-IR training Datasets on Hugging Face <https://huggingface.co/Hsqcsu/CSU-IR/tree/main>`_.
-
-   Please check the corresponding ``.yaml`` file in the ``configs/`` directory to identify which specific dataset is needed for each training script. Ensure the data is placed in the correct directory as specified in the configuration.
-
-Once the environment and data are correctly set up, you can start training. It is strongly recommended to run this script in an IDE terminal (like PyCharm's) instead of the standard system terminal to avoid potential environment-related issues.
-
-**train CSU-IR with Molecular Dynamics (MD) data**
+**1. Single GPU Training**
 
 .. code-block:: bash
 
-   python -m local_training/Multi-stage_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_I_MD.yaml
+   python local_training/Multi-stage_training_CSU-IR_in_local.py --config <CONFIG_PATH>
 
-**train CSU-IR with Density Functional Theory (DFT) data**
-
-.. code-block:: bash
-
-   python -m CSU-IR.train_and_val.pretrain_DFT --config configs/config_CSU-IR_pretrain_DFT.yaml
-
-**Train the SMILES-based Psychoactive Substance Classifier**
+**2. Multi-GPU Training (DDP, e.g., 3 GPUs)**
 
 .. code-block:: bash
 
-   python -m local_training/Multi-stage_training_CSU-IR_in_local --config configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml
+   torchrun --nproc_per_node=3 local_training/Multi-stage_training_CSU-IR_in_local.py --config <CONFIG_PATH>
 
-Reproducing Original Results
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**Configurations by Stage:**
 
-.. note::
-   To view and reproduce the results from the original paper, you must first download the trained model weights and the required test data.
+* **Stage-I (MD)**: ``configs/config_CSU-IR_Multi-stage_training_I_MD.yaml``
+* **Stage-II (DFT)**: ``configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml``
+* **Stage-III (EXP)**: ``configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml``
 
-   * **Download From**: `CSU-IR Model Hub <https://huggingface.co/Hsqcsu/CSU-IR/tree/main>`_
-   * **Placement**: Please place all downloaded files into their respective directories as expected by the analysis scripts (e.g., model weights into a ``checkpoints/`` folder and test data into the ``data/`` folder).
+Testing and Inference
+~~~~~~~~~~~~~~~~~~~~~
 
-After setting up the necessary files, you can run the provided analysis scripts to reproduce the results.
+Scripts for testing and inference are available in the `CSU-IR/test_and_infer/ <https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer>`_ directory. 
 
-*   **Analysis Script**: Please refer to the `batch_test_and_infer.py <https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/test_and_infer/batch_test_and_infer.py>`_ script for detailed instructions on execution.
+These scripts do not require terminal arguments and can be executed directly within your IDE/code interface.
 
 Step 4: Local 100-Million-library-Retrieval
-----------------------------------------
-For 100-Million-Scale retrieval，We have provided a GUI for local usage.
+------------------------------------------
 
-Users need to download the processed 100-million-library-Retrieval library from `Hugging Face <https://huggingface.co/datasets/Hsqcsu/CSU-IR>`_ and place it in the data/100-Million-library-Retrieval folder. Then, simply run `Retrieval_GUI.py <https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/100-Million-library-Retrieval/Retrieval_GUI.py>`_ and click the link generated in the terminal to perform a 100-million-library retrieval.
+For 100-Million-Scale retrieval, we provide a dedicated local GUI.
+
+1. Download the processed 100-million library from `Hugging Face Dataset Hub <https://huggingface.co/datasets/Hsqcsu/CSU-IR_100_Million_library/tree/main>`_.
+2. Place the downloaded library into the ``data/100-Million-library-Retrieval`` folder.
+3. Run the GUI script:
+
+.. code-block:: bash
+
+   python CSU-IR/100-Million-library-Retrieval/Retrieval_GUI.py
+
+Click the local URL generated in your terminal to access the retrieval interface, which supports:
+
+* **IR Only**: Search against the 100-Million library using IR spectra alone.
+* **IR + Molecular Weight**: Search with combined IR signals and MW filtering.
+* **IR + Molecular Formula**: Search with combined IR signals and molecular formula filtering.
