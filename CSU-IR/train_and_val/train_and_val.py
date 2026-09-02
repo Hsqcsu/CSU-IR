@@ -107,7 +107,7 @@ def train_model(smiles_model, ir_model, train_loader, val_loader, optimizer, num
     best_ratios = []
     best_epochs = []
 
-    output_dir = os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_II_DFT")
+    output_dir = os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_II_DFT", "DFT_without_MD_pretraining")
     best_val_ratio = -1.0
     best_smiles_path = os.path.join(output_dir, 'best_smiles_model.pth')
     best_ir_path = os.path.join(output_dir, 'best_ir_model.pth')
