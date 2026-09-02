@@ -110,7 +110,7 @@ All stages support both **Single-GPU** and **Multi-GPU (DDP)** training.
 
 .. code-block:: bash
 
-   torchrun --nproc_per_node=3 local_training/Multi-stage_training_CSU-IR_in_local.py --config <CONFIG_PATH>
+   torchrun --nproc_per_node=3 local_training/Multi-stage_training_CSU-IR_in_local_DDP.py --config <CONFIG_PATH>
 
 **Configurations by Stage:**
 
