@@ -121,7 +121,7 @@ All stages support both **Single-GPU** and **Multi-GPU (DDP)** training. Replace
 - **Stage-II (DFT):** `configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml`
 - **Stage-III (EXP):** `configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml`
 
-The training configuration and script of CSU-IR for SOTA comparison are also provided, supporting both single-GPU and multi-GPU (DDP) training using the same command format as above.
+The training configuration and script of CSU-IR for SOTA comparison are also provided, supporting both single-GPU and multi-GPU (DDP) training using the same command format as above. If you need to train QM9S in multi-modal mode, please manually set the task to "QM9S_ir_raman" in the config file.
 
 The PS fine-tuning for downstream task is also provided, with training scripts located in the local_training/ directory and corresponding config files in the configs/ directory. Given that the training script relies on validation metrics over the PS-derived database, which is not publicly available, please contact us if you require access.
 
