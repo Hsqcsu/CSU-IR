@@ -46,7 +46,7 @@ training_params:
   device: auto
 
 dataloader_params:
-  batch_size: 384 # please set to 108 when the task is 'QM9S_ir_raman' 
+  batch_size: 384 # please set to 128 when the task is 'QM9S_ir_raman' 
   num_workers: 0
 
 optimizer_params:
