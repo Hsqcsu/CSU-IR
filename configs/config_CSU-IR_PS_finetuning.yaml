@@ -12,12 +12,12 @@ paths:
   pretrained_ir_model: check_points/Multi-stage_training_Stage_III_EXP/MD_DFT_EXP/best_ir_model.pth
 
   # Pre-prepared PS Subset Data paths
-  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/train_smiles.txt
-  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/train_ir.pt
-  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/val_smiles.txt
-  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/val_ir.pt
-  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/test_smiles.txt
-  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/test_ir.pt
+  train_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/train_smiles_ps.txt
+  train_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/train_ir_ps.pt
+  val_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/val_smiles_ps.txt
+  val_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/val_ir_ps.pt
+  test_smiles: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/test_smiles_ps.txt
+  test_ir: data/Multi-staged_training_data/Experimental_Benching_data/EB/PS_subset/test_ir_ps.pt
 
   # PS Derivative background library path for gallery retrieval
   ps_derivative_library: data/PS Derivative Library/smiles_Derivative_PS.txt
