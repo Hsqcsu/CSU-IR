@@ -1,26 +1,34 @@
+'''
+Retrieval functions and library management for 100-Million-Scale IR spectrum retrieval.
+Supports IR-Only, MW-Filtered (Exact Mass with tolerance), and Formula-Filtered modes.
+'''
+
 import os
 import torch
 import torch.nn.functional as F
 from tqdm import tqdm
 import numpy as np
 from collections import defaultdict
-from sklearn.calibration import calibration_curve
 
 FEATURE_DIM = 1024
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
+
 def load_MW_Formula(path):
-    with open(path, 'r') as f:
+    """Loads molecular weight or molecular formula file."""
+    with open(path, 'r', encoding='utf-8') as f:
         MW_or_Formula = f.read().splitlines()
     return MW_or_Formula
-    
+
+
 def get_final_query_metadata(runtime_val, file_path):
+    """Retrieves metadata from runtime user input or local file."""
     if runtime_val is not None and str(runtime_val).strip() != "":
         print(f"Using manually provided input: {runtime_val}")
         return str(runtime_val).strip()
     if os.path.exists(file_path):
         try:
-            with open(file_path, 'r') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 lines = f.read().splitlines()
                 if lines and lines[0].strip() != "":
                     print(f"Using input from file ({file_path}): {lines[0]}")
@@ -28,22 +36,27 @@ def get_final_query_metadata(runtime_val, file_path):
         except Exception as e:
             print(f"Error reading file {file_path}: {e}")
     return None
-    
+
+
 class UnifiedCombinedLibrary:
     """
-    Unified library management class: Supports streaming reading and fast indexing based on molecular formula/molecular weight.
+    Unified library management class: Supports streaming memmap loading
+    and fast two-level indexing based on molecular formula and exact molecular weight.
     """
+
     def __init__(self, library_configs):
         self.mmap_list = []
         self.smiles_list = []
         self.formulas_list = []
-        self.mw_list = [] 
+        self.mw_list = []
         self.cumulative_sizes = [0]
-        
-        self.formula_to_indices = defaultdict(list)
-        self.mw_to_indices = defaultdict(list)
 
+        self.formula_to_indices = defaultdict(list)
+        self.mw_to_indices = defaultdict(list)  # Fast integer-bucket index
+
+        raw_mw_floats = []
         total_count = 0
+
         for config in library_configs:
             print(f"Loading metadata for {config['name']}...")
             with open(config['smiles'], 'r', encoding='utf-8') as f:
@@ -53,31 +66,46 @@ class UnifiedCombinedLibrary:
             count = len(smi)
             mmap = np.memmap(config['dat'], dtype='float16', mode='r', shape=(count, FEATURE_DIM))
             self.mmap_list.append(mmap)
+
             mws = []
             if 'mw' in config and os.path.exists(config['mw']):
                 with open(config['mw'], 'r', encoding='utf-8') as f:
                     mws = f.read().splitlines()
+
             for i in range(count):
                 global_idx = total_count + i
                 self.formula_to_indices[form[i]].append(global_idx)
+
                 if mws:
-                    mw_val = int(float(mws[i]))
-                    self.mw_to_indices[mw_val].append(global_idx)
+                    mw_float = float(mws[i])
+                    raw_mw_floats.append(mw_float)
+                    # Integer bucket key (using round to place in closest integer bucket)
+                    mw_int_bucket = int(round(mw_float))
+                    self.mw_to_indices[mw_int_bucket].append(global_idx)
+
             self.smiles_list.extend(smi)
             self.formulas_list.extend(form)
-            if mws: self.mw_list.extend(mws)
+            if mws:
+                self.mw_list.extend(mws)
             total_count += count
             self.cumulative_sizes.append(total_count)
 
+        # Convert bucket lists to numpy arrays for fast slicing
         for k in self.formula_to_indices:
             self.formula_to_indices[k] = np.array(self.formula_to_indices[k], dtype=np.int32)
         for k in self.mw_to_indices:
             self.mw_to_indices[k] = np.array(self.mw_to_indices[k], dtype=np.int32)
 
+        if raw_mw_floats:
+            self.mw_array = np.array(raw_mw_floats, dtype=np.float32)
+        else:
+            self.mw_array = np.array([], dtype=np.float32)
+
         self.total_count = total_count
         print(f"Library Loaded. Total Size: {self.total_count:,}, Unique Formulas: {len(self.formula_to_indices)}")
 
     def get_features_chunk(self, start_idx, end_idx):
+        """Reads feature chunks streaming from memmap."""
         chunks = []
         for i in range(len(self.mmap_list)):
             part_start = self.cumulative_sizes[i]
@@ -91,6 +119,7 @@ class UnifiedCombinedLibrary:
         return np.concatenate(chunks, axis=0) if chunks else np.array([])
 
     def get_features_by_indices(self, global_indices):
+        """Extracts features by global indices."""
         feats = np.zeros((len(global_indices), FEATURE_DIM), dtype='float16')
         for i, idx in enumerate(global_indices):
             part_idx = 0
@@ -100,9 +129,15 @@ class UnifiedCombinedLibrary:
             feats[i] = self.mmap_list[part_idx][local_idx]
         return feats
 
-def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k=100, search_range=None):
+
+def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k=100, search_range=None,
+                           mw_tolerance=0.5):
+    """
+    100M library retrieval function supporting IR-Only, MW-Filtered (Exact Mass +/- tolerance), and Formula-Filtered modes.
+    """
     q_feat = ir_feature.to(device).to(torch.float32)
-    if q_feat.dim() == 1: q_feat = q_feat.unsqueeze(0)
+    if q_feat.dim() == 1:
+        q_feat = q_feat.unsqueeze(0)
     q_feat = F.normalize(q_feat, p=2, dim=1)
 
     candidate_indices = None
@@ -114,16 +149,37 @@ def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k
         mode = "Formula-Filtered"
     elif mw is not None and str(mw).strip() != "":
         try:
-            target_mw = int(float(mw))
-            candidate_indices = lib_manager.mw_to_indices.get(target_mw, np.array([], dtype=np.int32))
-            mode = "MW-Filtered"
-        except:
-            pass
+            target_mw = float(mw)
+            min_mw = target_mw - mw_tolerance
+            max_mw = target_mw + mw_tolerance
 
-    print(f"Running search in [{mode}] mode...")
+            # Step 1: Fast coarse filtering via neighboring integer buckets
+            min_bucket = int(np.floor(min_mw))
+            max_bucket = int(np.ceil(max_mw))
+
+            coarse_candidates = []
+            for b in range(min_bucket, max_bucket + 1):
+                if b in lib_manager.mw_to_indices:
+                    coarse_candidates.append(lib_manager.mw_to_indices[b])
+
+            if coarse_candidates:
+                coarse_indices = np.concatenate(coarse_candidates)
+                # Step 2: Fine filtering using exact float values within [target_mw - 0.5, target_mw + 0.5]
+                cand_mws = lib_manager.mw_array[coarse_indices]
+                exact_mask = np.abs(cand_mws - target_mw) <= mw_tolerance
+                candidate_indices = coarse_indices[exact_mask]
+            else:
+                candidate_indices = np.array([], dtype=np.int32)
+
+            mode = "MW-Filtered"
+        except Exception as e:
+            print(f"Error parsing MW input: {e}")
+
+    print(
+        f"Running search in [{mode}] mode ")
 
     if mode in ["Formula-Filtered", "MW-Filtered"]:
-        if len(candidate_indices) == 0:
+        if candidate_indices is None or len(candidate_indices) == 0:
             print(f"Warning: No candidates found for {mode} search.")
             return []
 
@@ -175,26 +231,28 @@ def unified_retrieval_100M(lib_manager, ir_feature, mw=None, formula=None, top_k
         })
     return results
 
-def load_confidence_mappings(path):
-    mappings = {}
-    print("Loading Calibration Data...")
-    for i in range(1, 11):
-        file_path = os.path.join(path, f'top{i}_calib_data.pt')
-        if os.path.exists(file_path):
-            data = torch.load(file_path, map_location='cpu')
-            prob_true, prob_pred = calibration_curve(data['flags'], data['scores'], n_bins=10, strategy='quantile')
-            mappings[i] = (prob_pred, prob_true)
-        else:
-            print(f"Warning: Recall@{i} mapping missing in {path}.")
-    return mappings
 
-def calculate_confidence(score, recall_k,CONFIDENCE_MAPPINGS):
-    if recall_k not in CONFIDENCE_MAPPINGS:
-        return 0.0
-    prob_pred, prob_true = CONFIDENCE_MAPPINGS[recall_k]
-    min_score, min_conf = prob_pred[0], prob_true[0]
-    if score < min_score:
-        conf = score * (min_conf / min_score) if min_score > 0 else 0.0
-    else:
-        conf = np.interp(score, prob_pred, prob_true)
-    return max(0.0, float(conf))
+# ==============================================================================
+# Platt-Scaling Calibration Function (Using First Parameter Set: NIST / Recall@1)
+# ==============================================================================
+def calculate_calibrated_confidence(cosine_sim: float, smiles_model_instance, scale: float = 0.2187,
+                                    bias: float = -0.3748) -> float:
+    """
+    Computes Platt-calibrated probability using model-learned temperature logit scaling
+    and empirical calibration parameters.
+    """
+    with torch.no_grad():
+        if hasattr(smiles_model_instance, 't_prime') and hasattr(smiles_model_instance, 'bias'):
+            t = torch.exp(smiles_model_instance.t_prime).cpu().item()
+            b = smiles_model_instance.bias.cpu().item()
+        elif hasattr(smiles_model_instance, 'model_sm'):  # Compatible with ModelInference wrapper
+            t = torch.exp(smiles_model_instance.model_sm.t_prime).cpu().item()
+            b = smiles_model_instance.model_sm.bias.cpu().item()
+        else:
+            t = 10.0
+            b = -10.0
+
+    raw_logit = cosine_sim * t + b
+    calibrated_logit = scale * raw_logit + bias
+    confidence = 1.0 / (1.0 + np.exp(-calibrated_logit))
+    return float(np.clip(confidence, 0.0, 1.0))
