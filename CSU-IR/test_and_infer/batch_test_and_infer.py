@@ -1,172 +1,188 @@
-# This is an example file using NPS retrieval against the existing library. 
-import sys
 import os
+import sys
+import torch
+import torch.nn.functional as F
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+from torch.cuda.amp import autocast
+from rdkit import Chem
 
+# Project path configuration
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, PROJECT_ROOT)
-print(PROJECT_ROOT)
+print(f"Project Root: {PROJECT_ROOT}")
 
-import torch
-import pandas as pd
-import numpy as np
-import jcamp
-from tqdm import tqdm
-import torch.nn.functional as F
-from rdkit import Chem
-from torch.utils.data import Dataset, DataLoader
-
-# If there is a red underline below, don't worry, it will not affect the code running
 from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
 
-from test_and_infer.test_and_infer_functions import ModelInference
-from test_and_infer.test_and_infer_functions import get_feature_from_smiles
-from test_and_infer.test_and_infer_functions import get_topK_result
-from test_and_infer.test_and_infer_functions import normalize_smiles
-
 TOKENIZER_PATH = os.path.join(PROJECT_ROOT, 'model', "tokenizer-smiles-roberta-1e_new")
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-class IRSmilesDataset(Dataset):
-    def __init__(self, ir_spectra, smiles):
-        self.ir_spectra = ir_spectra
-        self.smiles = smiles
+# ==============================================================================
+# 1. Basic Preprocessing Functions
+# ==============================================================================
+def normalize_smiles(smiles):
+    if not smiles:
+        return None
+    try:
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is not None:
+            return Chem.MolToSmiles(mol, isomericSmiles=False, canonical=True)
+    except Exception:
+        pass
+    return smiles
 
-    def __len__(self):
-        return len(self.smiles)
 
-    def __getitem__(self, idx):
-        return self.ir_spectra[idx], self.smiles[idx]
-
-
-def load_data(smiles_path, ir_path):
-    with open(smiles_path, 'r') as f:
+def load_smiles(smiles_path, normalize=True):
+    with open(smiles_path, 'r', encoding='utf-8') as f:
         smiles_list = f.read().splitlines()
-    ir_data = torch.load(ir_path)
-    return smiles_list, ir_data
-
-
-def load_smiles(smiles_path):
-    with open(smiles_path, 'r') as f:
-        smiles_list = f.read().splitlines()
+    if normalize:
+        smiles_list = [normalize_smiles(s) for s in smiles_list if s.strip()]
+        smiles_list = [s for s in smiles_list if s is not None]
     return smiles_list
 
 
-'--------------------------------------------------------------------------------------------'
-
-Interference_library_path = os.path.join(PROJECT_ROOT, 'data', 'processed_library', 'PS', 'smiles_Existing_PS.txt')
-Interference_library = load_smiles(Interference_library_path)
-
-NPS_smiles_path = os.path.join(PROJECT_ROOT, 'data', 'test_data', 'NPS', 'filtered_final_NPS_smiles.txt')
-NPS_ir_path = os.path.join(PROJECT_ROOT, 'data', 'test_data', 'NPS', 'filtered_final_NPS_ir.pt')
-
-NPS_smiles, NPS_ir = load_data(NPS_smiles_path, NPS_ir_path)
-
-NPS_dataset = IRSmilesDataset(NPS_ir, NPS_smiles)
-batch_size = 208
-NPS_loader = DataLoader(NPS_dataset, batch_size=batch_size, shuffle=False)
-
-'--------------------------------------------------------------------------------------------'
-IR_model = IRModel()
-SmilesModel = SmilesModel(roberta_model_path=None,
-                          roberta_tokenizer_path=TOKENIZER_PATH,
-                          smiles_maxlen=300,
-                          max_position_embeddings=505,
-                          vocab_size=181,
-                          feature_dim=768,
-                          )
-
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-SmilesModel.to(device)
-IR_model.to(device)
-'--------------------------------------------------------------------------------------------'
-
-model_pairs = [
-    (os.path.join(PROJECT_ROOT, 'check_points', 'PS_finetuned',
-                  'best_smiles_model.pth'),
-     os.path.join(PROJECT_ROOT, 'check_points', 'PS_finetuned',
-                  'best_ir_model.pth')),
-]
+def load_data(smiles_path, ir_path, normalize=True):
+    smiles_list = load_smiles(smiles_path, normalize=normalize)
+    ir_data = torch.load(ir_path)
+    if not isinstance(ir_data, torch.Tensor):
+        ir_data = torch.tensor(ir_data)
+    return smiles_list, ir_data
 
 
-def evaluate_loader(loader, combined_features, smiles_list, loader_name):
-    top_1_matches = 0
-    top_5_matches = 0
-    top_10_matches = 0
-    total_samples = 0
+# ==============================================================================
+# 2. Batch Feature Extraction (AMP Supported)
+# ==============================================================================
+def embed_ir_tensors(ir_data, ir_model, device, batch_size=256):
+    ir_model.eval()
+    all_features = []
+    for i in range(0, len(ir_data), batch_size):
+        batch_ir = ir_data[i: i + batch_size].to(device)
+        with torch.no_grad():
+            with autocast():
+                features = ir_model(batch_ir) if callable(ir_model) else ir_model.encode(batch_ir)
+                all_features.append(features.cpu())
+    return torch.cat(all_features, dim=0)
 
-    results = []
 
-    normalized_library_smiles = [normalize_smiles(s) for s in smiles_list]
+def embed_smiles_list(smiles_list, smiles_model, tokenizer, device, batch_size=256):
+    smiles_model.eval()
+    all_features = []
+    for i in range(0, len(smiles_list), batch_size):
+        batch_s = smiles_list[i: i + batch_size]
+        batch_s = [s if s is not None else "" for s in batch_s]
 
-    test_loader_tqdm = tqdm(loader, unit="batch")
-    for ir_spectra_batch, smiles_batch in test_loader_tqdm:
-        ir_spectra_tensor = ir_spectra_batch.to(device)
+        encoded = tokenizer(
+            batch_s,
+            max_length=300,
+            padding='max_length',
+            truncation=True,
+            return_tensors='pt'
+        )
+        input_ids = encoded['input_ids'].to(device)
+        attention_mask = encoded['attention_mask'].to(device)
+        lengths = attention_mask.sum(dim=1)
 
-        for idx, ir_spectra in enumerate(ir_spectra_tensor):
-            query_smiles = normalize_smiles(smiles_batch[idx])
-            ir_feature = ModelInferenc.ir_encode(ir_spectra)
+        with torch.no_grad():
+            with autocast():
+                try:
+                    features = smiles_model.encode((input_ids, attention_mask), lengths)
+                except TypeError:
+                    features = smiles_model.encode((input_ids, attention_mask), CLS_pooling=True)
+                all_features.append(features.cpu())
 
-            indices, scores = get_topK_result(ir_feature, combined_features, 10)
-            top_indices = indices[0] if len(indices.shape) > 1 else indices
+    return torch.cat(all_features, dim=0)
 
-            found_at_rank = -1
-            current_top_smiles = []
 
-            for rank, i in enumerate(top_indices):
-                i = int(i)
-                if i < len(normalized_library_smiles):
-                    candidate_smiles = normalized_library_smiles[i]
-                    current_top_smiles.append(smiles_list[i])
+# ==============================================================================
+# 3. Vectorized Retrieval Evaluation
+# ==============================================================================
+def evaluate_retrieval(query_smiles, query_ir_feats, gallery_smiles, gallery_smiles_feats, loss_type="sigmoid"):
+    total_samples = len(query_smiles)
 
-                    if found_at_rank == -1 and query_smiles == candidate_smiles:
-                        found_at_rank = rank
+    smiles_to_gallery_idx = {s: idx for idx, s in enumerate(gallery_smiles)}
+    target_indices = torch.tensor([smiles_to_gallery_idx[s] for s in query_smiles], device=device)
 
-            if found_at_rank != -1:
-                if found_at_rank < 1:
-                    top_1_matches += 1
-                if found_at_rank < 5:
-                    top_5_matches += 1
-                if found_at_rank < 10:
-                    top_10_matches += 1
+    if loss_type == "sigmoid":
+        q_feats = query_ir_feats.to(device)
+        g_feats = gallery_smiles_feats.to(device)
+    else:
+        q_feats = F.normalize(query_ir_feats, p=2, dim=-1).to(device)
+        g_feats = F.normalize(gallery_smiles_feats, p=2, dim=-1).to(device)
 
-            results.append((current_top_smiles, scores.tolist()))
-            total_samples += 1
+    logits = torch.matmul(q_feats, g_feats.T)
+    topk_scores, topk_indices = torch.topk(logits, k=min(10, g_feats.size(0)), dim=1)
+
+    true_ids = target_indices.unsqueeze(1)
+    matches = (topk_indices == true_ids)
+
+    top_1_matches = matches[:, :1].any(dim=1).sum().item()
+    top_5_matches = matches[:, :5].any(dim=1).sum().item()
+    top_10_matches = matches[:, :10].any(dim=1).sum().item()
 
     top_1_ratio = top_1_matches / total_samples if total_samples > 0 else 0
     top_5_ratio = top_5_matches / total_samples if total_samples > 0 else 0
     top_10_ratio = top_10_matches / total_samples if total_samples > 0 else 0
 
-    print(f"\nResults for {loader_name}:")
+    print(f"\nResults for NPS against Existing library:")
     print(f"Total Samples: {total_samples}")
     print(f"Recall@1  : {top_1_ratio:.4f}")
     print(f"Recall@5  : {top_5_ratio:.4f}")
     print(f"Recall@10 : {top_10_ratio:.4f}")
 
-    with open(f'{loader_name}_results.txt', 'w') as file:
-        for top_smiles, scores in results:
-            file.write(f'Top SMILES: {top_smiles}\n')
-            file.write(f'Scores: {scores}\n\n')
+    return topk_scores.cpu().numpy(), topk_indices.cpu().numpy()
 
 
-for smiles_model_path, ir_model_path in model_pairs:
-    print(f"Processing models: {smiles_model_path} and {ir_model_path}")
+# ==============================================================================
+# 4. Main Entry Point
+# ==============================================================================
+if __name__ == "__main__":
+    Interference_library_path = os.path.join(PROJECT_ROOT, 'data', 'processed_library', 'PS', 'smiles_Existing_PS.txt')
+    NPS_smiles_path = os.path.join(PROJECT_ROOT, 'data', 'test_data', 'NPS', 'filtered_final_NPS_smiles.txt')
+    NPS_ir_path = os.path.join(PROJECT_ROOT, 'data', 'test_data', 'NPS', 'filtered_final_NPS_ir.pt')
 
-    ModelInferenc = ModelInference(
-        SmilesModel,
-        IR_model,
-        pretrain_model_path_sm=smiles_model_path,
-        pretrain_model_path_ir=ir_model_path,
-        device=None
+    smiles_model_weight = os.path.join(PROJECT_ROOT, 'check_points', 'PS_finetuned', 'best_smiles_model.pth')
+    ir_model_weight = os.path.join(PROJECT_ROOT, 'check_points', 'PS_finetuned', 'best_ir_model.pth')
+
+    print("Loading and normalizing data...")
+    NPS_smiles, NPS_ir = load_data(NPS_smiles_path, NPS_ir_path, normalize=True)
+    Interference_library = load_smiles(Interference_library_path, normalize=True)
+
+    gallery_smiles = list(set(Interference_library + NPS_smiles))
+    print(f"Query Count: {len(NPS_smiles)}, Unique Gallery Size: {len(gallery_smiles)}")
+
+    ir_model = IRModel().to(device)
+    smiles_model = SmilesModel(
+        roberta_model_path=None,
+        roberta_tokenizer_path=TOKENIZER_PATH,
+        smiles_maxlen=300,
+        feature_dim=768
+    ).to(device)
+
+    tokenizer = smiles_model.smiles_tokenizer
+
+    print("Loading model weights...")
+    ir_model.load_state_dict(torch.load(ir_model_weight, map_location=device))
+    smiles_model.load_state_dict(torch.load(smiles_model_weight, map_location=device))
+
+    print("Extracting Query IR features...")
+    query_ir_features = embed_ir_tensors(NPS_ir, ir_model, device)
+
+    print("Extracting Gallery SMILES features...")
+    gallery_smiles_features = embed_smiles_list(gallery_smiles, smiles_model, tokenizer, device)
+
+    topk_scores, topk_indices = evaluate_retrieval(
+        query_smiles=NPS_smiles,
+        query_ir_feats=query_ir_features,
+        gallery_smiles=gallery_smiles,
+        gallery_smiles_feats=gallery_smiles_features,
+        loss_type="sigmoid"
     )
 
-    NPS_smiles_features = get_feature_from_smiles(NPS_smiles, ModelInferenc)
-    Existing_PS_library = get_feature_from_smiles(Interference_library, ModelInferenc)
-    library_Existing_PS = torch.cat((NPS_smiles_features, Existing_PS_library), dim=0)
-    smiles_Existing_PS = list(NPS_smiles) + list(Interference_library)
-
-    evaluate_loader(NPS_loader, library_Existing_PS, smiles_Existing_PS, 'NPS against Existing library')
-
-
-
-
+    with open('NPS against Existing library_results.txt', 'w', encoding='utf-8') as file:
+        for idx, (scores, indices) in enumerate(zip(topk_scores, topk_indices)):
+            top_smiles = [gallery_smiles[i] for i in indices]
+            file.write(f'Query SMILES: {NPS_smiles[idx]}\n')
+            file.write(f'Top SMILES: {top_smiles}\n')
+            file.write(f'Scores: {scores.tolist()}\n\n')
