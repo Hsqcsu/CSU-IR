@@ -46,15 +46,15 @@ SmilesModel = SmilesModel(roberta_model_path=None,
     feature_dim=768,
 )
 
-#IR_model.load_weights(os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_I_MD","best_ir_model_epoch_79_ratio_0.9810.pth"))
-#SmilesModel.load_weights(os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_I_MD", "best_smiles_model_epoch_79_ratio_0.9810.pth"))
+#IR_model.load_weights(os.path.join(PROJECT_ROOT, "check_points",  "Multi-stage_training_Stage_I_MD","best_ir_model.pth"))
+#SmilesModel.load_weights(os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_I_MD", "best_smiles_model.pth"))
 
-train_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_train_smiles.txt")
-train_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_train_ir.pt")
-val_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt")
-val_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt")
-test_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_smiles.txt")
-test_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","QM9S_DFT_val_ir.pt")
+train_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","train_smiles.txt")
+train_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","train_ir.pt")
+val_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","val_smiles.txt")
+val_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","val_ir.pt")
+test_smiles_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","val_smiles.txt")
+test_ir_path = os.path.join(PROJECT_ROOT, "data",  "Multi-staged_training_data", "Density functional simulation data","val_ir.pt")
 
 smiles_train, ir_train = load_smiles_ir(train_smiles_path, train_ir_path)
 smiles_val, ir_val = load_smiles_ir(val_smiles_path, val_ir_path)
