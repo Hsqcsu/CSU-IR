@@ -19,7 +19,7 @@ paths:
   test_smiles: data/SOTA_Comparison/QM9S/test_smiles.txt
   test_ir: data/SOTA_Comparison/QM9S/test_ir.pt
 
-  # Raman data paths (Leave enabled for Task 3 'QM9S_ir_raman'; comment out or set to null for Task 1 'QM9S_ir_only')
+  # Raman data paths (Leave enabled for Task 2 'QM9S_ir_raman'; comment out or set to null for Task 1 'QM9S_ir_only')
   train_raman: data/SOTA_Comparison/QM9S/train_raman.pt
   val_raman: data/SOTA_Comparison/QM9S/val_raman.pt
   test_raman: data/SOTA_Comparison/QM9S/test_raman.pt
@@ -39,7 +39,7 @@ model_params:
 training_params:
   # Task Switcher:
   #   - Set to 'QM9S_ir_only'  for Task 1 (and comment out raman paths above)
-  #   - Set to 'QM9S_ir_raman' for Task 3 (and keep raman paths enabled above)
+  #   - Set to 'QM9S_ir_raman' for Task 2 (and keep raman paths enabled above)
   task: QM9S_ir_only
   num_epochs: 1000
   patience: 15
