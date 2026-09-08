@@ -161,6 +161,7 @@ The GUI includes:
 The experiments during Stage-I and Stage-II were conducted on a single NVIDIA GPU (RTX 4090). 
 - **Stage-I (MD Data)**: ~33 hours
 - **Stage-II (DFT Data)**: ~8 hours
+
 The Stage-III experiment was optimized using three NVIDIA RTX 6000 Ada GPUs. The time required for a single complete experiment is
 - **Stage-III (EXP Data)**: ~10 minutes
 
