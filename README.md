@@ -68,7 +68,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 **Step 2:** Put all the downloaded files into our filefolder[`CSU-IR/data/Multi-staged_training_data/Experimental_Benching_data/EB/data_without_NIST_IR/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/Multi-staged_training_data/Experimental_Benching_data/EB/data_without_NIST_IR).
 
-**Step 3:** Run the data_reconstruction script [`CSU-IR/EB_dataset_construction/EB_data_reconstruction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction/EB_data_reconstruction.py). Once the script is executed, the reconstructed EB dataset will be saved in [`CSU-IR/EB_dataset_construction/EB_data_reconstruction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction/EB_data_reconstruction.py).
+**Step 3:** Run the data_reconstruction script [`CSU-IR/EB_dataset_construction/EB_data_reconstruction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction/EB_data_reconstruction.py). Once the script is executed, the reconstructed EB dataset will be saved in [`CSU-IR/data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/Multi-staged_training_data/Experimental_Benching_data/EB/data_with_NIST_IR).
 
 > [!NOTE]
 >
