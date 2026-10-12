@@ -1,104 +1,104 @@
 import numpy as np
-from scipy.interpolate import CubicSpline
+from scipy.interpolate import interp1d
 
-def _resample_and_pad_spectrum(wavenumbers, intensities):
-    x = np.array(wavenumbers, dtype=float)
-    y = np.array(intensities, dtype=float)
-    valid_mask = (~np.isnan(x)) & (~np.isnan(y)) & (y != 0)
-    x = x[valid_mask]
-    y = y[valid_mask]
-    if len(x) < 4:
-        return None
-    if np.nanmax(x) < 100.0:
-        x = 10000.0 / x
-    _, unique_indices = np.unique(x, return_index=True)
-    x = x[unique_indices]
-    y = y[unique_indices]
-    sort_idx = np.argsort(x)
-    x = x[sort_idx]
-    y = y[sort_idx]
-    min_x, max_x = x[0], x[-1]
-    start = max(min_x, 500.0)
-    end = min(max_x, 4000.0)
-    if start >= end:
-        return None
-    mask = (x >= start) & (x <= end)
-    x_crop = x[mask]
-    y_crop = y[mask]
-    if len(x_crop) < 4:
-        return None
-    start_int = int(np.ceil(start))
-    end_int = int(np.floor(end))
-    x_temp = np.arange(start_int, end_int + 1, 1.0)
-    x_temp = np.clip(x_temp, x_crop[0], x_crop[-1])
-    cs_crop = CubicSpline(x_crop, y_crop, extrapolate=True)
-    y_temp = cs_crop(x_temp)
-    x_full = np.arange(500, 4001, 1.0)
-    y_full = np.zeros_like(x_full)
-    idx_start = start_int - 500
-    idx_end = end_int - 500
-    y_full[idx_start:idx_end + 1] = y_temp
-    if idx_start > 0:
-        y_full[:idx_start] = y_temp[0]
-    if idx_end < 3500:
-        y_full[idx_end + 1:] = y_temp[-1]
-    x_target = np.linspace(500.0, 4000.0, 3500)
-    cs_full = CubicSpline(x_full, y_full, extrapolate=True)
-    return cs_full(x_target)
 
-def preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method='cubic'):
+def unified_preprocess_spectrum(
+    wavenumbers,
+    intensities,
+    declared_yunits="",
+    target_start=500.0,
+    target_end=4000.0,
+    num_points=3500,
+):
+    """Unified standard physical preprocessing pipeline for IR spectra.
+
+    Strictly applies: Truncation of out-of-range ends, flat-padding with edge values 
+    for missing ends, linear interpolation within the measured region, and normalization to [0, 1].
+    """
     try:
-        t = np.array(transmittances, dtype=float)
-        if np.nanmax(t) > 1.5:
-            t = t / 100.0
-        t = np.clip(t, 1e-4, 1.0)
-        abs_raw = -np.log10(t)
-        processed_y = _resample_and_pad_spectrum(wavenumbers, abs_raw)
-        if processed_y is None:
-            return None
-        min_val = np.min(processed_y)
-        max_val = np.max(processed_y)
-        if max_val > min_val:
-            normalized = (processed_y - min_val) / (max_val - min_val)
-        else:
-            normalized = np.zeros_like(processed_y)
-        if np.any(np.isnan(normalized)):
-            return None
-        return normalized
-    except Exception:
-        return None
+        wn = np.array(wavenumbers, dtype=np.float64)
+        spec = np.array(intensities, dtype=np.float64)
 
-def preprocess_csv_spectra_lower_than_500(wavenumbers, transmittances, method='cubic'):
-    return preprocess_csv_spectra_higer_500(wavenumbers, transmittances, method=method)
-
-def preprocess_jdx_spectra_higer_500(wavenumbers, intensities, method='cubic'):
-    try:
-        processed_y = _resample_and_pad_spectrum(wavenumbers, intensities)
-        if processed_y is None:
+        # 1. Filter out invalid/non-finite data points
+        valid_mask = np.isfinite(wn) & np.isfinite(spec)
+        wn = wn[valid_mask]
+        spec = spec[valid_mask]
+        if len(wn) < 10:
             return None
-        min_val = np.min(processed_y)
-        max_val = np.max(processed_y)
-        if max_val > min_val:
-            norm_spec = (processed_y - min_val) / (max_val - min_val)
+
+        # 2. Sort in ascending order
+        sort_idx = np.argsort(wn)
+        wn = wn[sort_idx]
+        spec = spec[sort_idx]
+
+        # 3. Determine spectrum type (Transmittance vs. Absorbance)
+        y_max = np.max(spec)
+        y_median = np.median(spec)
+        declared_upper = declared_yunits.upper()
+
+        is_transmittance = False
+        if any(t in declared_upper for t in ["TRANSMITTANCE", "%T", "PERCENT"]):
+            is_transmittance = True
+        elif any(a in declared_upper for a in ["ABSORBANCE", "ABS", "OD"]):
+            is_transmittance = False
         else:
-            norm_spec = np.zeros_like(processed_y)
-        spec_median = np.median(norm_spec)
-        if spec_median > 0.45:
-            spec_clipped = np.clip(norm_spec, 1e-4, 1.0)
+            if (y_max > 10.0 and y_median >= 40.0) or (
+                y_median < 40.0 and y_max >= 95.0
+            ):
+                is_transmittance = True
+            elif y_max <= 1.5 and y_median >= 0.6:
+                is_transmittance = True
+
+        # 4. Convert to absorbance (including removal of zero-transmittance dead zones)
+        if is_transmittance:
+            pos_mask = spec > 1e-5
+            wn = wn[pos_mask]
+            spec = spec[pos_mask]
+            if len(wn) < 10:
+                return None
+
+            if np.max(spec) > 2.0:
+                spec = spec / 100.0
+
+            spec_clipped = np.clip(spec, 1e-4, 1.0)
             abs_spec = -np.log10(spec_clipped)
-            min_val_abs = np.min(abs_spec)
-            max_val_abs = np.max(abs_spec)
-            if max_val_abs > min_val_abs:
-                final_spec = (abs_spec - min_val_abs) / (max_val_abs - min_val_abs)
-            else:
-                final_spec = np.zeros_like(abs_spec)
         else:
-            final_spec = norm_spec
-        if np.any(np.isnan(final_spec)):
-            return None
-        return final_spec
+            abs_spec = spec - np.min(spec) if np.min(spec) < 0 else spec
+
+        # Remove duplicates to ensure strictly monotonically increasing wavenumbers
+        unique_wn, unique_idx = np.unique(wn, return_index=True)
+        unique_abs = abs_spec[unique_idx]
+
+        # 5. Enforce target range truncation and boundary padding (e.g., 500–4000 cm^-1)
+        target_grid = np.linspace(target_start, target_end, num_points)
+        orig_min = unique_wn[0]
+        orig_max = unique_wn[-1]
+
+        resampled_abs = np.zeros(num_points, dtype=np.float64)
+
+        # 5.1 Below the actual start wavenumber: flat-pad using the first valid measured value
+        left_mask = target_grid < orig_min
+        resampled_abs[left_mask] = unique_abs[0]
+
+        # 5.2 Above the actual end wavenumber: flat-pad using the last valid measured value
+        right_mask = target_grid > orig_max
+        resampled_abs[right_mask] = unique_abs[-1]
+
+        # 5.3 Points within the measured range: linear interpolation (out-of-bounds regions are truncated)
+        overlap_mask = (~left_mask) & (~right_mask)
+        if np.any(overlap_mask):
+            interp_func = interp1d(unique_wn, unique_abs, kind="linear")
+            resampled_abs[overlap_mask] = interp_func(target_grid[overlap_mask])
+
+        # 6. Min-Max normalization to [0, 1]
+        min_v = np.min(resampled_abs)
+        max_v = np.max(resampled_abs)
+        if max_v > min_v:
+            norm_abs = (resampled_abs - min_v) / (max_v - min_v)
+        else:
+            norm_abs = np.zeros_like(resampled_abs)
+
+        return norm_abs
+
     except Exception:
         return None
-
-def preprocess_jdx_spectra_lower_500(wavenumbers, intensities, method='cubic'):
-    return preprocess_jdx_spectra_higer_500(wavenumbers, intensities, method=method)
