@@ -21,3 +21,4 @@ tqdm
 seaborn
 matplotlib
 Pillow
+pytest
