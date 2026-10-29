@@ -6,7 +6,7 @@ This document provides a comprehensive guide and command-line entry points to re
 
 ## 1. Experimental Tasks Introduction
 
-| Task Name (`--task`) | Paper Reference | Checkpoint Availability | Data Availability & Access |
+| Task Name | Paper Reference | Checkpoint Availability | Data Availability & Access |
 | :--- | :--- | :---: | :--- |
 | **`100M library Retrieval`** | Fig. 4 | **Public** | **Public** (Downloadable encoded index & test queries) |
 | **`Functional groups detection`** | Fig. 6a | **Public** | **Public** (Downloadable test spectra & structures) |
