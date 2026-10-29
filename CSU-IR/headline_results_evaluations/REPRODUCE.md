@@ -4,7 +4,7 @@ This document provides a comprehensive guide and command-line entry points to re
 
 ---
 
-## 1. Experimental Tasks Introduction
+## 1. Tasks Introduction
 
 | Task Name | Paper Reference | Checkpoint Availability | Data Availability & Access |
 | :--- | :---: | :---: | :--- |
