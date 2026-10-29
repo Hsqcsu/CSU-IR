@@ -6,6 +6,8 @@ import argparse
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+import torch.distributed as dist
+import torch.distributed.nn as dist_nn
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torch.optim import AdamW
@@ -49,7 +51,6 @@ def setup_device_and_distributed():
     """
     Automatically detects environment: Single-GPU, Multi-GPU (DDP or DataParallel), or CPU.
     """
-    # 1. Check if launched with torchrun / DDP environment variables
     if "RANK" in os.environ and "WORLD_SIZE" in os.environ:
         rank = int(os.environ["RANK"])
         world_size = int(os.environ["WORLD_SIZE"])
@@ -120,13 +121,42 @@ class IRSmilesDataset(Dataset):
 
 
 # ==========================================
+# Unified DualEncoder Architecture (DDP Compatible)
+# ==========================================
+class DualEncoder(nn.Module):
+    """
+    Unified dual-encoder module to ensure autograd hooks and gradient synchronization 
+    are strictly engaged across all GPUs for both encoders under DistributedDataParallel.
+    """
+    def __init__(self, smiles_model, ir_model, is_ddp=False):
+        super().__init__()
+        self.smiles_model = smiles_model
+        self.ir_model = ir_model
+        self.is_ddp = is_ddp
+
+    def forward(self, smiles_inputs, smiles_lengths, ir_spectra):
+        # 1. Feature extraction
+        smiles_features = self.smiles_model.encode(smiles_inputs, smiles_lengths)
+        ir_features = self.ir_model(ir_spectra)
+
+        # 2. Cross-GPU feature gathering with gradient autograd support
+        if self.is_ddp and is_dist_avail_and_initialized():
+            gathered_smiles = dist_nn.all_gather(smiles_features)
+            gathered_ir = dist_nn.all_gather(ir_features)
+            smiles_features = torch.cat(gathered_smiles, dim=0)
+            ir_features = torch.cat(gathered_ir, dim=0)
+
+        # 3. Similarity matrix calculation
+        t = torch.exp(self.smiles_model.t_prime)
+        b = self.smiles_model.bias
+        logits = torch.matmul(ir_features, smiles_features.T) * t + b
+        return logits
+
+
+# ==========================================
 # Multi-Stage Checkpoint Auto-Resolver
 # ==========================================
 def resolve_multi_stage_checkpoints_and_paths(config, project_root):
-    """
-    Automatically resolves pre-trained weights and destination output directory
-    based on multi-stage training logic.
-    """
     ckpt_root = os.path.join(project_root, "check_points")
     stage_1_dir = os.path.join(ckpt_root, "Multi-stage_training_Stage_I_MD")
     
@@ -160,7 +190,6 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
             print(f"--> Stage I (MD): Training from scratch. Output: {target_output_dir}")
 
     elif stage in ["DFT", "STAGE_II"]:
-        # Check Stage I (MD)
         s_ckpt, i_ckpt = check_weights(stage_1_dir)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
@@ -174,7 +203,6 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
                 print(f"--> No Stage I weights found. Training DFT from scratch. Output: {target_output_dir}")
 
     elif stage in ["EXP", "EB", "STAGE_III"]:
-        # Priority 1: Stage II MD_DFT
         s_ckpt, i_ckpt = check_weights(stage_2_md_dft)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
@@ -183,7 +211,6 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
                 print(f"--> [Priority 1 Hit] Loaded MD_DFT weights from: {stage_2_md_dft}")
                 print(f"--> Output directory set to: {target_output_dir}")
         else:
-            # Priority 2: Stage II DFT without MD
             s_ckpt, i_ckpt = check_weights(stage_2_no_md)
             if s_ckpt and i_ckpt:
                 load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
@@ -192,7 +219,6 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
                     print(f"--> [Priority 2 Hit] Loaded DFT_without_MD weights from: {stage_2_no_md}")
                     print(f"--> Output directory set to: {target_output_dir}")
             else:
-                # Priority 3: Stage I MD only
                 s_ckpt, i_ckpt = check_weights(stage_1_dir)
                 if s_ckpt and i_ckpt:
                     load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
@@ -206,7 +232,6 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
                         print(f"--> [Priority 4 Hit] No pre-trained weights found. Training EXP from scratch.")
                         print(f"--> Output directory set to: {target_output_dir}")
 
-    # Override with config output_dir if explicitly provided and not dynamically resolved
     if target_output_dir:
         config['paths']['output_dir'] = target_output_dir
     if is_main_process():
@@ -218,10 +243,11 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
 # ==========================================
 # Validation Logic
 # ==========================================
-def validate_model(smiles_model, ir_model, val_loader, device):
-    smiles_model.eval()
-    ir_model.eval()
-    raw_smiles_model = get_raw_model(smiles_model)
+def validate_model(dual_encoder, val_loader, device):
+    dual_encoder.eval()
+    raw_dual_encoder = get_raw_model(dual_encoder)
+    raw_smiles_model = raw_dual_encoder.smiles_model
+    raw_ir_model = raw_dual_encoder.ir_model
 
     running_loss = 0.0
     result_smiles_features = []
@@ -241,21 +267,23 @@ def validate_model(smiles_model, ir_model, val_loader, device):
             lengths = attention_mask.sum(dim=1)
 
             with autocast():
+                # Extract features for evaluation
                 smiles_features = raw_smiles_model.encode((input_ids, attention_mask), lengths)
-                ir_features = ir_model(ir_spectra_tensor)
+                ir_features = raw_ir_model(ir_spectra_tensor)
                 result_smiles_features.append(smiles_features)
                 result_ir_features.append(ir_features)
 
+                # Batch loss computation
                 t = torch.exp(raw_smiles_model.t_prime)
                 b = raw_smiles_model.bias
                 logits = torch.matmul(ir_features, smiles_features.T) * t + b
                 n = logits.size(0)
-                labels = 2 * torch.eye(n).to(device) - torch.ones(n, n).to(device)
+                labels = 2 * torch.eye(n, device=device) - torch.ones(n, n, device=device)
                 loss = -torch.sum(F.logsigmoid(labels * logits)) / n
 
             running_loss += loss.item() * ir_spectra_tensor.size(0)
 
-    # Calculate Recall@1 (Top-1 Accuracy)
+    # Calculate global Recall@1
     all_smiles_features = torch.cat(result_smiles_features, 0)
     all_ir_features = torch.cat(result_ir_features, 0)
     logits_full = torch.matmul(all_ir_features, all_smiles_features.T)
@@ -271,7 +299,7 @@ def validate_model(smiles_model, ir_model, val_loader, device):
 # ==========================================
 # Main Training Loop with Early Stopping
 # ==========================================
-def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device, train_sampler=None):
+def train_model(config, dual_encoder, train_loader, val_loader, optimizer, device, train_sampler=None):
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
     num_epochs = config['training_params']['num_epochs']
@@ -289,14 +317,14 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
 
     training_losses, validation_losses, validation_recalls = [], [], []
 
-    raw_smiles_model = get_raw_model(smiles_model)
+    raw_dual_encoder = get_raw_model(dual_encoder)
+    raw_smiles_model = raw_dual_encoder.smiles_model
 
     for epoch in range(num_epochs):
         if train_sampler and hasattr(train_sampler, "set_epoch"):
             train_sampler.set_epoch(epoch)
 
-        smiles_model.train()
-        ir_model.train()
+        dual_encoder.train()
         running_loss = 0.0
         train_loader_tqdm = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{num_epochs}", unit="batch", disable=not is_main_process())
 
@@ -314,13 +342,11 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
 
             optimizer.zero_grad()
             with autocast():
-                smiles_features = raw_smiles_model.encode((input_ids, attention_mask), lengths)
-                ir_features = ir_model(ir_spectra_tensor)
-                t = torch.exp(raw_smiles_model.t_prime)
-                b = raw_smiles_model.bias
-                logits = torch.matmul(ir_features, smiles_features.T) * t + b
+                # Direct call to the wrapped DDP model ensures full autograd backward graph & gradient synchronization
+                logits = dual_encoder((input_ids, attention_mask), lengths, ir_spectra_tensor)
+                
                 n = logits.size(0)
-                labels = 2 * torch.eye(n).to(device) - torch.ones(n, n).to(device)
+                labels = 2 * torch.eye(n, device=device) - torch.ones(n, n, device=device)
                 loss = -torch.sum(F.logsigmoid(labels * logits)) / n
 
             scaler.scale(loss).backward()
@@ -334,7 +360,7 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
         training_losses.append(epoch_loss)
 
         # Validation phase
-        val_loss, top_1_ratio = validate_model(smiles_model, ir_model, val_loader, device)
+        val_loss, top_1_ratio = validate_model(dual_encoder, val_loader, device)
         validation_losses.append(val_loss)
         validation_recalls.append(top_1_ratio)
 
@@ -349,8 +375,9 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
             if top_1_ratio > best_val_ratio:
                 best_val_ratio = top_1_ratio
                 early_stop_counter = 0
-                torch.save(get_raw_model(smiles_model).state_dict(), best_smiles_path)
-                torch.save(get_raw_model(ir_model).state_dict(), best_ir_path)
+                # Save unwrapped original weights preserving identical interface
+                torch.save(raw_dual_encoder.smiles_model.state_dict(), best_smiles_path)
+                torch.save(raw_dual_encoder.ir_model.state_dict(), best_ir_path)
                 print(f"  ✨ [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
             else:
                 early_stop_counter += 1
@@ -423,13 +450,10 @@ def main():
         print(f"SmilesModel Parameters: {count_parameters(Smiles_Model)}")
         print(f"IR_model Parameters: {count_parameters(IR_model)}")
 
-    IR_model.to(device)
-    Smiles_Model.to(device)
-
     # 4. Checkpoint loading priority: Config explicit path > Auto-resolved multi-stage path
     final_ir_ckpt = config['paths'].get('ir_model_check_point') or auto_ir_ckpt
     if final_ir_ckpt and os.path.exists(final_ir_ckpt):
-        IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location=device))
+        IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location='cpu'))
         if is_main_process():
             print(f"✅ Loaded IR_model checkpoint from: {final_ir_ckpt}")
     else:
@@ -438,21 +462,29 @@ def main():
 
     final_smiles_ckpt = config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
     if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
-        Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location=device))
+        Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location='cpu'))
         if is_main_process():
             print(f"✅ Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
     else:
         if is_main_process():
             print("ℹ️ Training Smiles_Model from scratch.")
 
-    # 5. Multi-GPU Model Wrapping (DP or DDP)
+    # 5. Wrap both models inside the unified DualEncoder
+    is_ddp = (mode == "DDP")
+    dual_encoder = DualEncoder(Smiles_Model, IR_model, is_ddp=is_ddp).to(device)
+
+    # Multi-GPU wrapping (DDP or DataParallel)
     if mode == "DDP":
         local_rank = int(os.environ["LOCAL_RANK"])
-        IR_model = nn.parallel.DistributedDataParallel(IR_model, device_ids=[local_rank], find_unused_parameters=True)
-        Smiles_Model = nn.parallel.DistributedDataParallel(Smiles_Model, device_ids=[local_rank], find_unused_parameters=True)
+        # find_unused_parameters=True is necessary for Hugging Face RoBERTa unused pooler heads
+        dual_encoder = nn.parallel.DistributedDataParallel(
+            dual_encoder, 
+            device_ids=[local_rank], 
+            output_device=local_rank, 
+            find_unused_parameters=True
+        )
     elif mode == "DataParallel":
-        IR_model = nn.DataParallel(IR_model)
-        Smiles_Model = nn.DataParallel(Smiles_Model)
+        dual_encoder = nn.DataParallel(dual_encoder)
 
     # 6. Load datasets
     if is_main_process():
@@ -489,13 +521,13 @@ def main():
     # 7. Setup optimizer
     opt_params = config['optimizer_params']
     optimizer = AdamW(
-        list(Smiles_Model.parameters()) + list(IR_model.parameters()), 
+        dual_encoder.parameters(), 
         lr=opt_params['learning_rate'],
         weight_decay=opt_params['weight_decay']
     )
 
     # 8. Start training loop
-    train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device, train_sampler=train_sampler)
+    train_model(config, dual_encoder, train_loader, val_loader, optimizer, device, train_sampler=train_sampler)
 
     # Clean up distributed process group if needed
     if is_dist_avail_and_initialized():
