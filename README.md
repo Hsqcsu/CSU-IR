@@ -131,6 +131,17 @@ Scripts for testing and inference are available in the respective project folder
 
 - **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
 
+#### 4.1 Reproducing Headline Results
+
+we provide a unified evaluation script ( [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)) to reproduce all headline metrics and downstream analyses reported in our manuscript directly from pre-trained checkpoints.
+
+👉 **Please refer to [REPRODUCE.md](REPRODUCE.md) for the complete step-by-step reproduction guide and data preparation details.**
+
+**Quick Command:**
+```bash
+# Run with default settings (available tasks: retrieval_100m, functional_groups, ood, ps, all)
+python run_headline_evaluations.py --task retrieval_100m
+
 > **✨ Use custom Libraries!**  
 > To perform retrieval against your own custom library, you can make it in our web server.
 ---
