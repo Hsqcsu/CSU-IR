@@ -141,6 +141,7 @@ we provide a unified evaluation script ( [`CSU-IR/test_and_infer/`](https://gith
 ```bash
 # Run with default settings (available tasks: retrieval_100m, functional_groups, ood, ps, all)
 python run_headline_evaluations.py --task retrieval_100m
+```bash
 
 > **✨ Use custom Libraries!**  
 > To perform retrieval against your own custom library, you can make it in our web server.
