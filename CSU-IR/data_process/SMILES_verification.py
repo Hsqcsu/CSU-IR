@@ -1,3 +1,5 @@
+# 
+
 from datetime import datetime
 import os
 import time
@@ -7,11 +9,16 @@ import requests
 from rdkit import Chem, RDLogger
 from tqdm import tqdm
 
+# Project path configuration
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, PROJECT_ROOT)
+print(f"Project Root: {PROJECT_ROOT}")
+
 # Suppress unnecessary RDKit warnings
 RDLogger.DisableLog("rdApp.*")
 
 # ==================== 1. Paths and Configurations ====================
-DATA_DIR = r"F:\Spectrum\1122_after\CSU_IR_20261007_data_reprocess\EB_data\merged_splitted_dataset"
+DATA_DIR = os.path.join(PROJECT_ROOT, 'data', 'Multi-staged_training_data', 'Experimental_Benching_data', 'EB', 'data_with_NIST_IR')
 DATASETS = ["train", "val", "test"]
 
 # Verification error report output path (CSV)
@@ -108,8 +115,8 @@ def run_verification():
         log_file.flush()
 
         for split in DATASETS:
-            enriched_file = os.path.join(DATA_DIR, f"{split}_source_file_name_enriched.txt")
-            augmented_file = os.path.join(DATA_DIR, f"{split}_smiles_augmented.txt")
+            enriched_file = os.path.join(DATA_DIR, f"{split}_labels_enriched_for_verification.txt")
+            augmented_file = os.path.join(DATA_DIR, f"{split}_smiles.txt")
 
             if not os.path.exists(enriched_file) or not os.path.exists(augmented_file):
                 tqdm.write(f"[SKIP] Relevant files not found for dataset split: {split}")
