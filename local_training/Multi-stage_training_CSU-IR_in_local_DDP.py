@@ -3,6 +3,7 @@ import os
 import yaml
 import json
 import argparse
+import copy
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -19,6 +20,9 @@ import numpy as np
 
 
 def set_seed(seed=42):
+    """
+    Sets global deterministic seeds across Python, NumPy, and PyTorch (CPU & CUDA).
+    """
     random.seed(seed)
     os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
@@ -27,6 +31,7 @@ def set_seed(seed=42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
 
 # Ensure project root is in system path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'CSU-IR'))
@@ -89,7 +94,7 @@ def setup_device_and_distributed():
         gpu_count = 0
 
     if is_main_process():
-        print(f"\n🖥️  [Hardware Environment Detected]")
+        print(f"\n  [Hardware Environment Detected]")
         print(f"    - Execution Mode : {mode}")
         print(f"    - Primary Device : {device}")
         print(f"    - Available GPUs : {gpu_count}")
@@ -170,6 +175,10 @@ class DualEncoder(nn.Module):
 # Multi-Stage Checkpoint Auto-Resolver
 # ==========================================
 def resolve_multi_stage_checkpoints_and_paths(config, project_root):
+    """
+    Automatically resolves pre-trained weights and destination output directory
+    based on the multi-stage training dependency chain.
+    """
     ckpt_root = os.path.join(project_root, "check_points")
     stage_1_dir = os.path.join(ckpt_root, "Multi-stage_training_Stage_I_MD")
     
@@ -247,8 +256,6 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
 
     if target_output_dir:
         config['paths']['output_dir'] = target_output_dir
-    if is_main_process():
-        os.makedirs(config['paths']['output_dir'], exist_ok=True)
 
     return load_smiles_ckpt, load_ir_ckpt
 
@@ -280,13 +287,11 @@ def validate_model(dual_encoder, val_loader, device):
             lengths = attention_mask.sum(dim=1)
 
             with autocast():
-                # Extract features for evaluation
                 smiles_features = raw_smiles_model.encode((input_ids, attention_mask), lengths)
                 ir_features = raw_ir_model(ir_spectra_tensor)
                 result_smiles_features.append(smiles_features)
                 result_ir_features.append(ir_features)
 
-                # Batch loss computation
                 t = torch.exp(raw_smiles_model.t_prime)
                 b = raw_smiles_model.bias
                 logits = torch.matmul(ir_features, smiles_features.T) * t + b
@@ -296,7 +301,7 @@ def validate_model(dual_encoder, val_loader, device):
 
             running_loss += loss.item() * ir_spectra_tensor.size(0)
 
-    # Calculate global Recall@1
+    # Calculate Top-1 Accuracy (Recall@1) across validation set
     all_smiles_features = torch.cat(result_smiles_features, 0)
     all_ir_features = torch.cat(result_ir_features, 0)
     logits_full = torch.matmul(all_ir_features, all_smiles_features.T)
@@ -315,6 +320,9 @@ def validate_model(dual_encoder, val_loader, device):
 def train_model(config, dual_encoder, train_loader, val_loader, optimizer, device, train_sampler=None):
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
+    if is_main_process():
+        os.makedirs(output_dir, exist_ok=True)
+
     num_epochs = config['training_params']['num_epochs']
     patience = config['training_params'].get('patience', 15)
     warmup_epochs = config['scheduler_params']['warmup_epochs']
@@ -355,9 +363,7 @@ def train_model(config, dual_encoder, train_loader, val_loader, optimizer, devic
 
             optimizer.zero_grad()
             with autocast():
-                # Direct call to the wrapped DDP model ensures full autograd backward graph & gradient synchronization
                 logits = dual_encoder((input_ids, attention_mask), lengths, ir_spectra_tensor)
-                
                 n = logits.size(0)
                 labels = 2 * torch.eye(n, device=device) - torch.ones(n, n, device=device)
                 loss = -torch.sum(F.logsigmoid(labels * logits)) / n
@@ -372,7 +378,7 @@ def train_model(config, dual_encoder, train_loader, val_loader, optimizer, devic
         epoch_loss = running_loss / len(train_loader.dataset)
         training_losses.append(epoch_loss)
 
-        # Validation phase
+        # Validation step
         val_loss, top_1_ratio = validate_model(dual_encoder, val_loader, device)
         validation_losses.append(val_loss)
         validation_recalls.append(top_1_ratio)
@@ -380,23 +386,22 @@ def train_model(config, dual_encoder, train_loader, val_loader, optimizer, devic
         if is_main_process():
             print(f"Epoch {epoch + 1}/{num_epochs} -> Train Loss: {epoch_loss:.4f} | Val Loss: {val_loss:.4f} | Val Recall@1: {top_1_ratio:.4f}")
 
-        # Update learning rate schedule
+        # Advance learning rate scheduler
         (scheduler_warmup if epoch < warmup_epochs else scheduler_cosine).step()
 
-        # Check Early Stopping & Save Best Models (Main process only)
+        # Check early stopping criterion on main process
         if is_main_process():
             if top_1_ratio > best_val_ratio:
                 best_val_ratio = top_1_ratio
                 early_stop_counter = 0
-                # Save unwrapped original weights preserving identical interface
                 torch.save(raw_dual_encoder.smiles_model.state_dict(), best_smiles_path)
                 torch.save(raw_dual_encoder.ir_model.state_dict(), best_ir_path)
-                print(f"  ✨ [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
+                print(f"   [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
             else:
                 early_stop_counter += 1
-                print(f"  ⚠️ [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
+                print(f"   [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
 
-            # Save training history JSON per epoch
+            # Save per-epoch metrics to history JSON
             history_data = {
                 "train_losses": training_losses,
                 "val_losses": validation_losses,
@@ -405,23 +410,25 @@ def train_model(config, dual_encoder, train_loader, val_loader, optimizer, devic
             with open(os.path.join(output_dir, 'history.json'), 'w', encoding='utf-8') as f:
                 json.dump(history_data, f, indent=4)
 
-        # Broadcast early stopping decision if DDP
+        # Broadcast early stopping decision across DDP ranks
         if is_dist_avail_and_initialized():
             stop_tensor = torch.tensor([1 if early_stop_counter >= patience else 0], device=device)
             torch.distributed.broadcast(stop_tensor, src=0)
             if stop_tensor.item() == 1:
                 if is_main_process():
-                    print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
+                    print(f"\n [Early Stopping] Val Recall@1 did not improve for {patience} consecutive epochs. Terminating run.")
                 break
         else:
             if early_stop_counter >= patience:
-                print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
+                print(f"\n [Early Stopping] Val Recall@1 did not improve for {patience} consecutive epochs. Terminating run.")
                 break
 
     if is_main_process():
-        print('\n================ Training Summary ================')
+        print('\n================ Single Run Summary ================')
         print(f'Best Validation Recall@1: {best_val_ratio:.4f}')
-        print(f'Model weights & history saved to: {output_dir}')
+        print(f'Artifacts saved to: {output_dir}')
+
+    return best_val_ratio
 
 
 def main():
@@ -444,105 +451,163 @@ def main():
         if path and not os.path.isabs(path):
             config['paths'][key] = os.path.join(PROJECT_ROOT, path)
 
-    # 1. Setup device & multi-GPU environment
+    # 1. Setup device & distributed training environment
     device, mode = setup_device_and_distributed()
 
-    # 2. Auto-resolve multi-stage checkpoints and output directories
+    # 2. Auto-resolve multi-stage checkpoints and base directory
     auto_smiles_ckpt, auto_ir_ckpt = resolve_multi_stage_checkpoints_and_paths(config, PROJECT_ROOT)
+    base_output_dir = config['paths']['output_dir']
 
-    # 3. Initialize models
-    if is_main_process():
-        print("Initializing models...")
-    ir_model_config = config['model_params']['ir_model']
-    IR_model = IRModel(**ir_model_config)
-    smiles_model_config = config['model_params']['smiles_model']
-    Smiles_Model = SmilesModel(roberta_model_path=None, roberta_tokenizer_path=config['paths']['tokenizer'],
-                               **smiles_model_config)
-
-    if is_main_process():
-        print(f"SmilesModel Parameters: {count_parameters(Smiles_Model)}")
-        print(f"IR_model Parameters: {count_parameters(IR_model)}")
-
-    # 4. Checkpoint loading priority: Config explicit path > Auto-resolved multi-stage path
-    final_ir_ckpt = config['paths'].get('ir_model_check_point') or auto_ir_ckpt
-    if final_ir_ckpt and os.path.exists(final_ir_ckpt):
-        IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location='cpu'))
-        if is_main_process():
-            print(f"✅ Loaded IR_model checkpoint from: {final_ir_ckpt}")
+    # 3. Resolve random seeds configuration:
+    # Supports explicit list `seeds: [42, 420, 4200]`, single seed `seed: 42`, or default [42]
+    seeds_cfg = config.get('training_params', {}).get('seeds')
+    if seeds_cfg is not None:
+        seeds = seeds_cfg if isinstance(seeds_cfg, list) else [seeds_cfg]
     else:
-        if is_main_process():
-            print("ℹ️ Training IR_model from scratch.")
+        single_seed = config.get('training_params', {}).get('seed', 42)
+        seeds = [single_seed]
 
-    final_smiles_ckpt = config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
-    if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
-        Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location='cpu'))
-        if is_main_process():
-            print(f"✅ Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
-    else:
-        if is_main_process():
-            print("ℹ️ Training Smiles_Model from scratch.")
-
-    # 5. Wrap both models inside the unified DualEncoder
-    is_ddp = (mode == "DDP")
-    dual_encoder = DualEncoder(Smiles_Model, IR_model, is_ddp=is_ddp).to(device)
-
-    # Multi-GPU wrapping (DDP or DataParallel)
-    if mode == "DDP":
-        local_rank = int(os.environ["LOCAL_RANK"])
-        # find_unused_parameters=True is necessary for Hugging Face RoBERTa unused pooler heads
-        dual_encoder = nn.parallel.DistributedDataParallel(
-            dual_encoder, 
-            device_ids=[local_rank], 
-            output_device=local_rank, 
-            find_unused_parameters=True
-        )
-    elif mode == "DataParallel":
-        dual_encoder = nn.DataParallel(dual_encoder)
-
-    # 6. Load datasets
     if is_main_process():
-        print("Loading datasets...")
+        print(f"\nTarget Experiment Seed(s): {seeds} (Total trials: {len(seeds)})")
+
+    # 4. Preload dataset into memory once
+    if is_main_process():
+        print("Preloading datasets...")
     smiles_train, ir_train = load_smiles_ir(config['paths']['train_smiles'], config['paths']['train_ir'])
     smiles_val, ir_val = load_smiles_ir(config['paths']['val_smiles'], config['paths']['val_ir'])
 
-    train_dataset = IRSmilesDataset(ir_train, smiles_train)
-    val_dataset = IRSmilesDataset(ir_val, smiles_val)
+    all_seed_results = {}
 
-    dl_params = config['dataloader_params']
-    train_sampler = DistributedSampler(train_dataset, shuffle=True) if mode == "DDP" else None
+    # =========================================================================
+    # Multi-Seed Execution Loop
+    # =========================================================================
+    for idx, current_seed in enumerate(seeds, 1):
+        if is_main_process():
+            print(f"\n{'='*30} [RUN {idx}/{len(seeds)}] EXECUTING SEED {current_seed} {'='*30}")
+        
+        # Enforce exact reproducibility for current seed
+        set_seed(current_seed)
 
-    train_loader = DataLoader(
-        train_dataset, 
-        batch_size=dl_params['batch_size'], 
-        shuffle=(train_sampler is None),
-        sampler=train_sampler,
-        num_workers=dl_params.get('num_workers', 0),
-        pin_memory=True if torch.cuda.is_available() else False
-    )
-    val_loader = DataLoader(
-        val_dataset, 
-        batch_size=dl_params['batch_size'], 
-        shuffle=False,
-        num_workers=dl_params.get('num_workers', 0),
-        pin_memory=True if torch.cuda.is_available() else False
-    )
+        # Clone config and assign isolated sub-directory for multi-seed repeated trials
+        run_config = copy.deepcopy(config)
+        if len(seeds) > 1:
+            run_config['paths']['output_dir'] = os.path.join(base_output_dir, f"seed_{current_seed}")
+        else:
+            run_config['paths']['output_dir'] = base_output_dir
 
-    if is_main_process():
-        print(f"Training samples  : {len(train_dataset)}")
-        print(f"Validation samples: {len(val_dataset)}")
+        # Re-instantiate models for this trial
+        ir_model_config = run_config['model_params']['ir_model']
+        IR_model = IRModel(**ir_model_config)
+        smiles_model_config = run_config['model_params']['smiles_model']
+        Smiles_Model = SmilesModel(roberta_model_path=None, roberta_tokenizer_path=run_config['paths']['tokenizer'],
+                                   **smiles_model_config)
 
-    # 7. Setup optimizer
-    opt_params = config['optimizer_params']
-    optimizer = AdamW(
-        dual_encoder.parameters(), 
-        lr=opt_params['learning_rate'],
-        weight_decay=opt_params['weight_decay']
-    )
+        # Load pre-trained checkpoints (Stage-chain priority > Scratch)
+        final_ir_ckpt = run_config['paths'].get('ir_model_check_point') or auto_ir_ckpt
+        if final_ir_ckpt and os.path.exists(final_ir_ckpt):
+            IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location='cpu'))
+            if is_main_process():
+                print(f" [Seed {current_seed}] Loaded IR_model checkpoint from: {final_ir_ckpt}")
+        else:
+            if is_main_process():
+                print(f" [Seed {current_seed}] Initializing IR_model from scratch.")
 
-    # 8. Start training loop
-    train_model(config, dual_encoder, train_loader, val_loader, optimizer, device, train_sampler=train_sampler)
+        final_smiles_ckpt = run_config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
+        if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
+            Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location='cpu'))
+            if is_main_process():
+                print(f" [Seed {current_seed}] Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
+        else:
+            if is_main_process():
+                print(f" [Seed {current_seed}] Initializing Smiles_Model from scratch.")
 
-    # Clean up distributed process group if needed
+        # Wrap into unified DualEncoder architecture
+        is_ddp = (mode == "DDP")
+        dual_encoder = DualEncoder(Smiles_Model, IR_model, is_ddp=is_ddp).to(device)
+
+        if mode == "DDP":
+            local_rank = int(os.environ["LOCAL_RANK"])
+            dual_encoder = nn.parallel.DistributedDataParallel(
+                dual_encoder, 
+                device_ids=[local_rank], 
+                output_device=local_rank, 
+                find_unused_parameters=True
+            )
+        elif mode == "DataParallel":
+            dual_encoder = nn.DataParallel(dual_encoder)
+
+        # Build fresh DataLoaders with seed-specific random generators
+        train_dataset = IRSmilesDataset(ir_train, smiles_train)
+        val_dataset = IRSmilesDataset(ir_val, smiles_val)
+        dl_params = run_config['dataloader_params']
+
+        if mode == "DDP":
+            train_sampler = DistributedSampler(train_dataset, shuffle=True, seed=current_seed)
+            train_loader = DataLoader(
+                train_dataset, 
+                batch_size=dl_params['batch_size'], 
+                shuffle=False,
+                sampler=train_sampler,
+                num_workers=dl_params.get('num_workers', 0),
+                pin_memory=True if torch.cuda.is_available() else False
+            )
+        else:
+            train_sampler = None
+            g = torch.Generator()
+            g.manual_seed(current_seed)
+            train_loader = DataLoader(
+                train_dataset, 
+                batch_size=dl_params['batch_size'], 
+                shuffle=True,
+                generator=g,
+                num_workers=dl_params.get('num_workers', 0),
+                pin_memory=True if torch.cuda.is_available() else False
+            )
+
+        val_loader = DataLoader(
+            val_dataset, 
+            batch_size=dl_params['batch_size'], 
+            shuffle=False,
+            num_workers=dl_params.get('num_workers', 0),
+            pin_memory=True if torch.cuda.is_available() else False
+        )
+
+        # Fresh optimizer for current trial
+        opt_params = run_config['optimizer_params']
+        optimizer = AdamW(
+            dual_encoder.parameters(), 
+            lr=opt_params['learning_rate'],
+            weight_decay=opt_params['weight_decay']
+        )
+
+        # Execute training routine
+        best_val_r1 = train_model(run_config, dual_encoder, train_loader, val_loader, optimizer, device, train_sampler=train_sampler)
+        all_seed_results[f"seed_{current_seed}"] = best_val_r1
+
+        # Synchronize all distributed ranks before proceeding to next seed
+        if is_dist_avail_and_initialized():
+            torch.distributed.barrier()
+
+    # =========================================================================
+    # Aggregated Multi-Seed Results
+    # =========================================================================
+    if len(seeds) > 1 and is_main_process():
+        print(f"\n{'='*25} Multi-Seed Triplicate Summary {'='*25}")
+        r1_scores = list(all_seed_results.values())
+        for seed_k, score in all_seed_results.items():
+            print(f"  {seed_k}: Best Val Recall@1 = {score:.4f}")
+        print(f"  --> Mean Recall@1: {np.mean(r1_scores):.4f} ± {np.std(r1_scores):.4f}")
+
+        summary_path = os.path.join(base_output_dir, "multi_seed_summary.json")
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                "individual_runs": all_seed_results,
+                "mean_recall_at_1": float(np.mean(r1_scores)),
+                "std_recall_at_1": float(np.std(r1_scores))
+            }, f, indent=4)
+        print(f"Saved aggregated multi-seed summary to: {summary_path}")
+
+    # Clean up distributed process group
     if is_dist_avail_and_initialized():
         torch.distributed.destroy_process_group()
 
