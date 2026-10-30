@@ -10,7 +10,7 @@ This document provides a comprehensive guide and command-line entry points to re
 | :--- | :---: | :---: | :--- |
 | **100M library Retrieval** | Fig. 4 | **Public** | **Public** (automatic downloadable encoded index & test queries) |
 | **Functional groups detection** | Fig. 6a | **Public** | **Public** (automatic downloadable test spectra & structures) |
-| **OOD performance** | Fig. 6b | **Public** | *User-prepared* (Requires Thermo data, which can be accessed through standard procurement procedures. The specific OOD data needs to be processed firstly to extract the TF data from the test set in EB_TF. Then, using OOD building script to obtain the corresponding OOD data.) |
+| **OOD performance** | Fig. 6b | **Public** | *User-prepared* (Requires Thermo data, which can be accessed through standard procurement procedures. The specific OOD data needs to be processed firstly to extract the TF data from the test set in EB_TF. Then, using OOD building script (CSU-IR/OOD_data_building/build_OOD_data.py) to obtain the corresponding OOD data.) |
 | **NPS retrieval** | Fig. 6c | **Public** | *Partially restricted* (Existing library public and automatic downloadable; derived sets can be accessed upon reasonable request) |
 
 ---
