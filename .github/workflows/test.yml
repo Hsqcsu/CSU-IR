@@ -19,6 +19,8 @@ jobs:
       with:
         python-version: '3.11.9'
         cache: 'pip'
+        # Explicitly specify the dependency file path for pip cache calculation
+        cache-dependency-path: 'requirements/requirements_local.txt'
 
     - name: Install dependencies (CPU PyTorch)
       run: |
