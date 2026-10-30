@@ -1,6 +1,7 @@
 # **Interpretable spectra-to-structure retrieval scales molecular identification to 100 million compounds**
 
 [![Hugging Face Spaces](https://img.shields.io/badge/🤗%20Spaces-Demo-blue.svg)](https://huggingface.co/spaces/Hsqcsu/CSU-IR-Web)
+[![Automated Unit Tests](https://github.com/Hsqcsu/CSU-IR/actions/workflows/test.yml/badge.svg)](https://github.com/Hsqcsu/CSU-IR/actions/workflows/test.yml)
 
 This is the official code repository for our paper, **"Interpretable spectra-to-structure retrieval scales molecular identification to 100 million compounds"**.
 
