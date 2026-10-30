@@ -116,11 +116,16 @@ All stages support both **Single-GPU** and **Multi-GPU (DDP)** training. Replace
   ```bash
   torchrun --nproc_per_node=3 local_training/Multi-stage_training_CSU-IR_in_local_DDP.py --config <CONFIG_PATH>
   ```
-
 #### Configurations by Stage:
-- **Stage-I (MD):** `configs/config_CSU-IR_Multi-stage_training_I_MD.yaml`
-- **Stage-II (DFT):** `configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml`
-- **Stage-III (EXP):** `configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml`
+ - **Stage-I (MD):** `configs/config_CSU-IR_Multi-stage_training_I_MD.yaml`
+ - **Stage-II (DFT):** `configs/config_CSU-IR_Multi-stage_training_II_DFT.yaml`
+ - **Stage-III (EXP):** `configs/config_CSU-IR_Multi-stage_training_III_EXP.yaml`
+ 
+> [!TIP]
+> **Multi-Seed Trials for Stage-III (EXP):**  
+> Both the single-GPU and DDP scripts support multi-seed repeated trials exclusively for Stage-III. In `config_CSU-IR_Multi-stage_training_III_EXP.yaml`, you can configure `seeds` under `training_params`:
+> - `seeds: [42]` for the standard single-seed baseline (default).
+> - `seeds: [42, 420, 4200]` to automatically run triplicate trials for reliability confirmation. Outputs are saved in separate `seed_<SEED>/` subfolders alongside an aggregated `multi_seed_summary.json`.
 
 The training configuration and script of CSU-IR for SOTA comparison are also provided, supporting both single-GPU and multi-GPU (DDP) training using the same command format as above. If you need to train QM9S in multi-modal mode, please manually set the task to "QM9S_ir_raman" and reduce the batch size accordingly in the config file.
 
