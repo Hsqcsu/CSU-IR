@@ -1,0 +1,46 @@
+name: Automated Unit Tests
+
+# Automatically triggered on push or pull request to the main or master branch
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+    # 1. Checkout repository code
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    # 2. Set up Python environment
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11.9'
+        cache: 'pip' # Automatically enable pip caching to speed up subsequent runs
+
+    # 3. Install CPU-only PyTorch and other dependencies efficiently
+    - name: Install dependencies (CPU PyTorch)
+      run: |
+        python -m pip install --upgrade pip
+        
+        # 3.1 Force-install lightweight CPU-only PyTorch first (fast download, ~150MB)
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        
+        # 3.2 Filter out torch-related lines from requirements.txt to prevent overwriting the installed CPU version
+        if [ -f requirements.txt ]; then
+          grep -ivE '^(torch|torchvision|torchaudio)' requirements.txt > requirements_ci.txt || true
+          pip install -r requirements_ci.txt
+        fi
+        
+        # 3.3 Ensure pytest is installed and ready
+        pip install pytest
+
+    # 4. Run automated tests
+    - name: Run Pytest
+      run: |
+        pytest code_testing/test_basic.py -v
