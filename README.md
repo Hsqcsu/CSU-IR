@@ -75,7 +75,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 >
 >This process takes approximately 11 hours. A stalled progress bar is normal, and execution should not be manually terminated. If the process terminates unexpectedly, check the network connection and rerun the script; the system will automatically resume from the point of interruption without duplicating completed tasks. The workflow is complete once the terminal displays 'All tasks successfully completed!'.
 >
->The EB_CHONF, PS subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The experimental data for the E2S subset are based on EB_CHONF, which needs to be obtained from EB first. 
+>The EB_CHONF, PS subset, and EB_CHONF_E2S can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). 
 
 > [!WARNING]
 > 
