@@ -1,150 +1,171 @@
-"""CHONF Subset Extraction & SMILES Replacement Script
+"""EB_CHONF Dataset Extraction and Multi-Stage Cleaning Script
 
 Pipeline Overview:
-  1. Loads reconstructed datasets from `CSU-IR/data/EB_dataset/data_with_NIST_IR`.
-  2. Uses robust right-to-left splitting (`rsplit(None, 3)`) to parse tags:
-     - Column -3: CHONF status (CHONF_True / CHONF_False)
-     - Column -2: SMILES replacement status (None / CHONF_replace_smiles_xxx)
-     - Column -1: PS status (PS_True / PS_False)
-  3. Filters samples with `CHONF_True` and performs necessary SMILES substitutions.
-  4. Slices corresponding IR spectral tensors and exports results to `CSU-IR/data/EB_dataset/EB_CHONF`.
+  1. Base directory: CSU-IR relative path -> `data_with_NIST_IR`.
+  2. Stage 1 (Elemental Filter): Validates molecules with RDKit and strictly retains CHONF elements.
+  3. Stage 2 (Quality Filter): Drops multi-component/salt molecules (containing '.') and blacklist SMILES.
+  4. Slices IR spectral tensors, SMILES, and labels synchronously, outputting clean files to `EB_CHONF`.
 """
 
 import os
+from pathlib import Path
 import torch
+from rdkit import Chem
+
+# Allowed chemical element set
+ALLOWED_ELEMENTS = {"C", "H", "O", "N", "F"}
+
+# Specific blacklist SMILES to exclude per split (conformation generation failures or anomalous structures in SMEN and VibraCLIP data processing)
+EXCLUDE_SMILES = {
+    "train": {
+        "CCCCCCCCCCCC(=O)OCC(COC(=O)CCCCCCCCCCC)OC(=O)CCCCCCCCCCC",
+        "O=C(O)c1ccc(C(=O)O)c2c(C(=O)O)ccc(C(=O)O)c12",
+        "CCCCCC[C@H](C/C=C\\CCCCCCCC(=O)OCC(COC(=O)CCCCCCC/C=C\\C[C@@H](CCCCCC)OC(C)=O)OC(=O)CCCCCCC/C=C\\C[C@@H](CCCCCC)OC(C)=O)OC(C)=O",
+        "c1cc2ccc1CCc1ccc(cc1)CC2",
+        "CCCCCCCCCCCCCCCCCC(=O)OC[C@@H](OC(=O)CCCCCCCCCCCCCCCCC)[C@H]1OC[C@H](O)[C@H]1OC(=O)CCCCCCCCCCCCCCCCC",
+        "CCCCCCCCCCCCCCCC(=O)OCC(COC(=O)CCCCCCCCCCCCCCC)OC(=O)CCCCCCCCCCCCCCC",
+        "CCCCCCCCCCCCN(CCCCCCCCCCCC)CCCCCCCCCCCC",
+        "C1#CCCCCCCC#CCCCCC1",
+        "CCCCCCCCCCCCCCCC(=O)OC[C@H]1O[C@H](O[C@]2(COC(=O)CCCCCCCCCCCCCCC)O[C@H](CO)[C@@H](O)[C@@H]2O)[C@H](O)[C@@H](O)[C@@H]1O",
+        "CCCCCCCCC(=O)OC1C(C)(C)C(OC(=O)CCCCCCCC)C(C)(C)C(OC(=O)CCCCCCCC)C1(C)C",
+        "c1(C)cccc2c1c1c(cc2)cccc1C",
+    },
+    "val": {
+        "O=C(OC[C@H]1O[C@@H](OC(=O)c2cc(O)c(O)c(OC(=O)c3cc(O)c(O)c(O)c3)c2)[C@H](OC(=O)c2cc(O)c(O)c(OC(=O)c3cc(O)c(O)c(O)c3)c2)[C@@H](OC(=O)c2cc(O)c(O)c(OC(=O)c3cc(O)c(O)c(O)c3)c2)[C@@H]1OC(=O)c1cc(O)c(O)c(OC(=O)c2cc(O)c(O)c(O)c2)c1)c1cc(O)c(O)c(OC(=O)c2cc(O)c(O)c(O)c2)c1"
+    },
+    "test": {
+        "CCCCCCCCCCOC(=O)c1ccc(C(=O)OCCCCCCCCCC)c(C(=O)OCCCCCCCCCC)c1",
+        "CC(=O)OCCCCCCCCCCCCCCCCCC(=O)OCC(COC(=O)CCCCCCCCCCCCCCCCCOC(C)=O)OC(=O)CCCCCCCCCCCCCCCCCOC(C)=O",
+    },
+}
 
 
-def extract_chonf_data(splits=None):
+def is_chonf(smi):
+    """Checks whether the molecule contains only C, H, O, N, and F elements."""
+    mol = Chem.MolFromSmiles(smi)
+    if mol is None:
+        return False
+    for atom in mol.GetAtoms():
+        if atom.GetSymbol() not in ALLOWED_ELEMENTS:
+            return False
+    return True
+
+
+def extract_chonf_dataset(splits=None):
     if splits is None:
         splits = ["train", "val", "test"]
 
-    # ================= 1. Relative Path Settings =================
-    # Locate current script directory: CSU-IR/EB_dataset_construction/
-    script_dir = os.path.dirname(os.path.abspath(__file__))
+    # ================= 1. Relative Path Configuration =================
+    script_dir = Path(__file__).resolve().parent
+    csu_ir_dir = script_dir.parent
+    data_base_dir = (
+        csu_ir_dir
+        / "data"
+        / "Multi-staged_training_data"
+        / "Experimental_Benching_data"
+        / "EB"
+    )
 
-    # Navigate up one level to CSU-IR/ and locate CSU-IR/data/EB_dataset/
-    csu_ir_dir = os.path.dirname(script_dir)
-    data_base_dir = os.path.join(csu_ir_dir, "data", "Multi-staged_training_data", "Experimental_Benching_data", "EB")
+    # Input directory (containing datasets with reconstructed NIST IR)
+    input_dir = data_base_dir / "data_with_NIST_IR"
+    # Output directory (cleaned EB_CHONF subset)
+    output_dir = data_base_dir / "EB_CHONF"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Input directory (data with reconstructed NIST IR)
-    input_dir = os.path.join(data_base_dir, "data_with_NIST_IR")
-
-    # Output directory for CHONF subset
-    output_dir = os.path.join(data_base_dir, "EB_CHONF")
-    os.makedirs(output_dir, exist_ok=True)
-
-    print("🚀 Launching CHONF Subset Extraction Pipeline...")
+    print("Launching EB_CHONF Dataset Construction Pipeline...")
     print(f"Input Directory  : {input_dir}")
-    print(f"Output Directory : {output_dir}")
+    print(f"Output Directory : {output_dir}\n" + "=" * 70)
 
     for split in splits:
-        print(f"\n{'=' * 25} Processing [{split.upper()} Set] {'=' * 25}")
+        print(f"\n================ Processing [{split.upper()} Set] ================")
 
-        sample_id_file = os.path.join(input_dir, f"{split}_labels.txt")
-        smiles_file = os.path.join(input_dir, f"{split}_smiles.txt")
-        pt_file = os.path.join(input_dir, f"{split}_ir.pt")
+        labels_path = input_dir / f"{split}_labels.txt"
+        smiles_path = input_dir / f"{split}_smiles.txt"
+        ir_path = input_dir / f"{split}_ir.pt"
 
-        out_sample_id_file = os.path.join(output_dir, f"{split}_labels_CHONF.txt")
-        out_smiles_file = os.path.join(output_dir, f"{split}_smiles_CHONF.txt")
-        out_pt_file = os.path.join(output_dir, f"{split}_ir_CHONF.pt")
-
-        # Check if source files exist
-        if not (
-            os.path.exists(sample_id_file)
-            and os.path.exists(smiles_file)
-            and os.path.exists(pt_file)
-        ):
-            print(f"⚠️ Warning: Required files for [{split}] split not found. Skipping...")
+        if not (labels_path.exists() and smiles_path.exists() and ir_path.exists()):
+            print(f"Warning: Missing required files for [{split}] split. Skipping...")
             continue
 
-        print(f"Loading {split} data files...")
+        # ----------------- Load Raw Source Data -----------------
+        print(f"Loading raw files for [{split}]...")
+        with open(labels_path, "r", encoding="utf-8") as f:
+            labels_list = [line.strip() for line in f if line.strip()]
 
-        # ================= 2. Load Original Files =================
-        with open(sample_id_file, "r", encoding="utf-8") as f:
-            sample_lines = [line.strip() for line in f if line.strip()]
+        with open(smiles_path, "r", encoding="utf-8") as f:
+            smiles_list = [line.strip() for line in f if line.strip()]
 
-        with open(smiles_file, "r", encoding="utf-8") as f:
-            smiles_lines = [line.strip() for line in f if line.strip()]
+        ir_tensor = torch.load(ir_path, map_location="cpu")
+        orig_count = len(smiles_list)
 
-        # Load spectral tensor ([N, L] or [N, 1, L])
-        ir_tensors = torch.load(pt_file, map_location="cpu")
-
-        # Verify data alignment
-        total_samples = len(sample_lines)
         assert (
-            len(smiles_lines) == total_samples
-        ), f"SMILES count ({len(smiles_lines)}) does not match label count ({total_samples})!"
-        assert (
-            len(ir_tensors) == total_samples
-        ), f"IR Tensor count ({len(ir_tensors)}) does not match label count ({total_samples})!"
+            len(labels_list) == orig_count == len(ir_tensor)
+        ), f"Sample count mismatch! Labels: {len(labels_list)}, SMILES: {orig_count}, IR: {len(ir_tensor)}"
+        print(f"Initial total samples: {orig_count}")
+
+        # ----------------- Step 1: Retain CHONF Elements Only -----------------
+        print("-> Step 1: Filtering for valid CHONF molecules...")
+        chonf_indices = []
+        for idx, smi in enumerate(smiles_list):
+            if is_chonf(smi):
+                chonf_indices.append(idx)
 
         print(
-            f"Loaded {total_samples} samples. Filtering and processing according to rules..."
+            f"   Step 1 completed: Kept {len(chonf_indices)} / {orig_count} samples "
+            f"(Dropped non-CHONF: {orig_count - len(chonf_indices)})"
         )
 
-        # ================= 3. Filtering and SMILES Replacement =================
-        selected_indices = []
-        processed_smiles = []
-        processed_sample_lines = []
-        replaced_count = 0
+        # ----------------- Step 2: Remove Multi-Component & Blacklist Entries -----------------
+        print("-> Step 2: Filtering out '.' entries and blacklist molecules...")
+        current_exclude_set = EXCLUDE_SMILES.get(split, set())
 
-        for idx, (s_line, orig_smiles) in enumerate(
-            zip(sample_lines, smiles_lines)
-        ):
-            # Split exactly the last 3 columns from the right: <CHONF> <Replace> <PS>
-            parts = s_line.rsplit(maxsplit=3)
-            if len(parts) < 4:
-                continue
+        final_indices = []
+        dot_drop_count = 0
+        manual_drop_count = 0
 
-            chonf_status = parts[1]     # Column -3
-            replace_status = parts[2]   # Column -2
-            # ps_status = parts[3]      # Column -1
+        for idx in chonf_indices:
+            smi = smiles_list[idx]
+            if "." in smi:
+                dot_drop_count += 1
+            elif smi in current_exclude_set:
+                manual_drop_count += 1
+            else:
+                final_indices.append(idx)
 
-            # Rule 1: Only extract samples where CHONF status is CHONF_True
-            if chonf_status == "CHONF_True":
-                selected_indices.append(idx)
-                processed_sample_lines.append(s_line)
-
-                # Rule 2: If replacement tag exists, substitute the SMILES string
-                if replace_status.startswith("CHONF_replace_smiles_"):
-                    new_smiles = replace_status[len("CHONF_replace_smiles_"):]
-                    processed_smiles.append(new_smiles)
-                    replaced_count += 1
-                else:
-                    processed_smiles.append(orig_smiles)
-
-        # ================= 4. Slice Tensor Based on Selected Indices =================
-        selected_indices_tensor = torch.tensor(
-            selected_indices, dtype=torch.long
+        print(f"   Entries dropped with '.': {dot_drop_count}")
+        print(f"   Entries dropped via blacklist: {manual_drop_count}")
+        print(
+            f"   Final retained valid samples: {len(final_indices)} "
+            f"({len(final_indices)/orig_count:.2%})"
         )
-        filtered_ir_tensors = ir_tensors[selected_indices_tensor]
 
-        # ================= 5. Save Processed Files =================
-        print(f"Saving processed {split} CHONF files...")
+        # ----------------- Slice and Export Cleaned Files -----------------
+        filtered_labels = [labels_list[i] for i in final_indices]
+        filtered_smiles = [smiles_list[i] for i in final_indices]
+        filtered_ir = ir_tensor[final_indices]
 
-        # Save processed SMILES
+        out_labels_file = output_dir / f"{split}_labels.txt"
+        out_smiles_file = output_dir / f"{split}_smiles.txt"
+        out_ir_file = output_dir / f"{split}_ir.pt"
+
+        with open(out_labels_file, "w", encoding="utf-8") as f:
+            for lbl in filtered_labels:
+                f.write(f"{lbl}\n")
+
         with open(out_smiles_file, "w", encoding="utf-8") as f:
-            for smi in processed_smiles:
-                f.write(smi + "\n")
+            for smi in filtered_smiles:
+                f.write(f"{smi}\n")
 
-        # Save filtered label information
-        with open(out_sample_id_file, "w", encoding="utf-8") as f:
-            for s_info in processed_sample_lines:
-                f.write(s_info + "\n")
+        torch.save(filtered_ir, out_ir_file)
 
-        # Save sliced spectral tensors
-        torch.save(filtered_ir_tensors, out_pt_file)
+        print(f"Successfully processed and wrote [{split.upper()}] dataset:")
+        print(f"    - IR Tensor Shape : {filtered_ir.shape}")
+        print(f"    - Output Directory: {output_dir}")
 
-        print(f"✅ [{split.upper()}] Processing complete!")
-        print(f"    - Total Original Samples       : {total_samples}")
-        print(f"    - Extracted CHONF Samples      : {len(selected_indices)} ({len(selected_indices)/total_samples:.2%})")
-        print(f"    - Replaced SMILES Count        : {replaced_count}")
-        print(f"    - Filtered IR Tensor Shape     : {filtered_ir_tensors.shape}")
-
-    print("\n" + "=" * 75)
-    print(f"🎉 All splits processed successfully! Output saved to: {output_dir}")
-    print("=" * 75)
+    print("\n" + "=" * 70)
+    print(f"All datasets processed successfully! Saved to: {output_dir}")
+    print("=" * 70)
 
 
 if __name__ == "__main__":
-    extract_chonf_data(splits=["train", "val", "test"])
+    extract_chonf_dataset(splits=["train", "val", "test"])
