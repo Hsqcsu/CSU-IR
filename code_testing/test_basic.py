@@ -79,11 +79,14 @@ class TestTrainAndVal:
     @pytest.fixture
     def dummy_data(self):
         """Generate a minimal toy dataset for fast pipeline verification."""
-        # 4 samples, each having a 3500-dimensional IR vector
-        ir_spectra = torch.randn(4, 3500).float()
-        smiles = ["CCO", "CC(=O)O", "CCN", "c1ccccc1"]
+        # Increased to 8 samples (4 batches) to ensure GradScaler completes adaptive scaling and actually updates the optimizer within 1 epoch
+        ir_spectra = torch.rand(8, 3500).float()
+        smiles = [
+            "CCO", "CC(=O)O", "CCN", "c1ccccc1",
+            "CCCC", "CC(=O)C", "CCNCC", "c1ccc(O)cc1"
+        ]
         return ir_spectra, smiles
-
+    
     @pytest.fixture
     def temp_checkpoint_dir(self, tmp_path):
         """Create a temporary directory for model weights and guarantee deletion upon completion."""
@@ -98,39 +101,35 @@ class TestTrainAndVal:
         """Verify IRSmilesDataset indexing and slicing."""
         ir_spectra, smiles = dummy_data
         dataset = IRSmilesDataset(ir_spectra, smiles)
-        assert len(dataset) == 4
+        assert len(dataset) == len(smiles)
         item_ir, item_s = dataset[0]
         assert item_ir.shape == (3500,)
         assert item_s == "CCO"
 
     def test_fast_train_and_val_loop(self, dummy_data, temp_checkpoint_dir):
-        """Run an end-to-end smoke test for 1 epoch and verify weight generation and cleanup."""
+        """Run an end-to-end smoke test on GPU and verify weight generation."""
         ir_spectra, smiles = dummy_data
         dataset = IRSmilesDataset(ir_spectra, smiles)
         loader = DataLoader(dataset, batch_size=2, shuffle=False)
 
-        # Initialize lightweight model instances
         ir_model = IRModel().to(DEVICE)
         smiles_model = SmilesModel(
             roberta_model_path=None,
             roberta_tokenizer_path=TOKENIZER_PATH,
-            smiles_maxlen=64,  # Truncate length for rapid testing
+            smiles_maxlen=64,
             feature_dim=768
         ).to(DEVICE)
 
-        # Test validation routine
         val_loss, top1_acc = validate_model(smiles_model, ir_model, loader, device=DEVICE)
-        assert isinstance(val_loss, float), "Validation loss should be a float."
-        assert 0.0 <= top1_acc <= 1.0, "Validation Recall@1 should be bounded between 0 and 1."
+        assert isinstance(val_loss, float)
+        assert 0.0 <= top1_acc <= 1.0
 
-        # Test single-epoch training optimization loop
         optimizer = torch.optim.AdamW(
             list(smiles_model.parameters()) + list(ir_model.parameters()), 
             lr=1e-4
         )
 
-        # Patch GradScaler to support CPU environments (e.g., standard GitHub Actions runners)
-        with patch('torch.cuda.amp.GradScaler', lambda *args, **kwargs: torch.cuda.amp.GradScaler(enabled=torch.cuda.is_available())):
+        with patch('train_and_val.train_and_val.GradScaler', lambda: torch.cuda.amp.GradScaler(init_scale=128.0)):
             train_model(
                 smiles_model=smiles_model,
                 ir_model=ir_model,
@@ -144,15 +143,13 @@ class TestTrainAndVal:
                 device=DEVICE
             )
 
-        # Verify that output artifacts are successfully generated during execution
         best_smiles_weight = os.path.join(temp_checkpoint_dir, 'best_smiles_model.pth')
         best_ir_weight = os.path.join(temp_checkpoint_dir, 'best_ir_model.pth')
         history_file = os.path.join(temp_checkpoint_dir, 'history.json')
 
-        assert os.path.exists(best_smiles_weight), "SmilesModel checkpoint was not saved."
-        assert os.path.exists(best_ir_weight), "IRModel checkpoint was not saved."
-        assert os.path.exists(history_file), "Training history file was not saved."
-
+        assert os.path.exists(best_smiles_weight)
+        assert os.path.exists(best_ir_weight)
+        assert os.path.exists(history_file)
 
 # ==============================================================================
 # 4. Component ③: Batch Inference and Matrix Retrieval Test
