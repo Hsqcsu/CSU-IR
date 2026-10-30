@@ -14,8 +14,9 @@ from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR, LambdaLR
 from torch.utils.data import DataLoader, Dataset
 from tqdm import tqdm
-
 from rdkit import Chem
+
+
 
 # Disable tokenizers parallelism in multi-processing environments
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -34,13 +35,15 @@ from model.SMILES_encoder import SmilesModel
 # ==============================================================================
 #  Basic Utilities
 # ==============================================================================
-def set_seed(seed):
-    """Sets random seeds for reproducibility."""
+def set_seed(seed=42):
     random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.cuda.manual_seed_all(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
 def normalize_smiles(smiles):
