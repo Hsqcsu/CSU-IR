@@ -75,7 +75,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 >
 >This process takes approximately 11 hours. A stalled progress bar is normal, and execution should not be manually terminated. If the process terminates unexpectedly, check the network connection and rerun the script; the system will automatically resume from the point of interruption without duplicating completed tasks. The workflow is complete once the terminal displays 'All tasks successfully completed!'.
 >
->The EB_CHONF, PS subset, and EB_CHONF_E2S can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). 
+>The EB_CHONF and PS subset can be constructed from our script in the folder [`CSU-IR/EB_dataset_construction`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/EB_dataset_construction). The SMILES and DFT data for EB_CHONF_E2S are available at [`Hugging Face`](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/EB_CHONF_E2S) . Once EB_CHONF is constructed, the EB_CHONF_E2S subset can be extracted using the e2s_labels files, which record the corresponding indices in EB_CHONF.
 
 > [!WARNING]
 > 
