@@ -3,6 +3,7 @@ import os
 import yaml
 import json
 import argparse
+import copy
 import torch
 import torch.nn.functional as F
 from torch.utils.data import Dataset, DataLoader
@@ -23,6 +24,7 @@ def set_seed(seed=42):
     torch.cuda.manual_seed_all(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
+
 
 # Ensure project root is in system path
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'CSU-IR'))
@@ -68,10 +70,6 @@ class IRSmilesDataset(Dataset):
 # Multi-Stage Checkpoint Auto-Resolver
 # ==========================================
 def resolve_multi_stage_checkpoints_and_paths(config, project_root):
-    """
-    Automatically resolves pre-trained weights and destination output directory
-    based on multi-stage training logic.
-    """
     ckpt_root = os.path.join(project_root, "check_points")
     stage_1_dir = os.path.join(ckpt_root, "Multi-stage_training_Stage_I_MD")
     
@@ -103,50 +101,41 @@ def resolve_multi_stage_checkpoints_and_paths(config, project_root):
         print(f"--> Stage I (MD): Training from scratch. Output: {target_output_dir}")
 
     elif stage == "DFT" or stage == "STAGE_II":
-        # Check Stage I (MD)
         s_ckpt, i_ckpt = check_weights(stage_1_dir)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
             target_output_dir = stage_2_md_dft
             print(f"--> Found Stage I (MD) weights! Inheriting weights from: {stage_1_dir}")
-            print(f"--> Output directory set to: {target_output_dir}")
         else:
             target_output_dir = stage_2_no_md
-            print(f"--> No Stage I weights found. Training DFT from scratch. Output: {target_output_dir}")
+            print(f"--> No Stage I weights found. Training DFT from scratch.")
+        print(f"--> Output directory set to: {target_output_dir}")
 
     elif stage in ["EXP", "EB", "STAGE_III"]:
-        # Priority 1: Stage II MD_DFT
         s_ckpt, i_ckpt = check_weights(stage_2_md_dft)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
             target_output_dir = stage_3_md_dft_exp
             print(f"--> [Priority 1 Hit] Loaded MD_DFT weights from: {stage_2_md_dft}")
-            print(f"--> Output directory set to: {target_output_dir}")
         else:
-            # Priority 2: Stage II DFT without MD
             s_ckpt, i_ckpt = check_weights(stage_2_no_md)
             if s_ckpt and i_ckpt:
                 load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
                 target_output_dir = stage_3_dft_exp
                 print(f"--> [Priority 2 Hit] Loaded DFT_without_MD weights from: {stage_2_no_md}")
-                print(f"--> Output directory set to: {target_output_dir}")
             else:
-                # Priority 3: Stage I MD only
                 s_ckpt, i_ckpt = check_weights(stage_1_dir)
                 if s_ckpt and i_ckpt:
                     load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
                     target_output_dir = stage_3_md_exp
                     print(f"--> [Priority 3 Hit] Loaded MD ONLY weights from: {stage_1_dir}")
-                    print(f"--> Output directory set to: {target_output_dir}")
                 else:
                     target_output_dir = stage_3_no_pretrain
                     print(f"--> [Priority 4 Hit] No pre-trained weights found. Training EXP from scratch.")
-                    print(f"--> Output directory set to: {target_output_dir}")
+        print(f"--> Base Output directory set to: {target_output_dir}")
 
-    # Override with config output_dir if explicitly provided and not dynamically resolved
     if target_output_dir:
         config['paths']['output_dir'] = target_output_dir
-    os.makedirs(config['paths']['output_dir'], exist_ok=True)
 
     return load_smiles_ckpt, load_ir_ckpt
 
@@ -189,7 +178,6 @@ def validate_model(smiles_model, ir_model, val_loader, device):
 
             running_loss += loss.item() * ir_spectra_tensor.size(0)
 
-    # Calculate Recall@1 (Top-1 Accuracy)
     all_smiles_features = torch.cat(result_smiles_features, 0)
     all_ir_features = torch.cat(result_ir_features, 0)
     logits_full = torch.matmul(all_ir_features, all_smiles_features.T)
@@ -208,6 +196,8 @@ def validate_model(smiles_model, ir_model, val_loader, device):
 def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimizer, device):
     scaler = GradScaler()
     output_dir = config['paths']['output_dir']
+    os.makedirs(output_dir, exist_ok=True)
+
     num_epochs = config['training_params']['num_epochs']
     patience = config['training_params'].get('patience', 15)
     warmup_epochs = config['scheduler_params']['warmup_epochs']
@@ -278,10 +268,10 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
             early_stop_counter = 0
             torch.save(smiles_model.state_dict(), best_smiles_path)
             torch.save(ir_model.state_dict(), best_ir_path)
-            print(f"  ✨ [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
+            print(f"   [New Best] Recall@1 improved to {best_val_ratio:.4f}. Best weights saved!")
         else:
             early_stop_counter += 1
-            print(f"  ⚠️ [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
+            print(f"   [No Improvement] Early stopping counter: {early_stop_counter}/{patience}")
 
         # Save training history JSON per epoch
         history_data = {
@@ -292,14 +282,14 @@ def train_model(config, smiles_model, ir_model, train_loader, val_loader, optimi
         with open(os.path.join(output_dir, 'history.json'), 'w', encoding='utf-8') as f:
             json.dump(history_data, f, indent=4)
 
-        # Trigger Early Stop Termination
         if early_stop_counter >= patience:
-            print(f"\n🛑 [Early Stopping Triggered] Val Recall@1 has not improved for {patience} consecutive epochs. Terminating training.")
+            print(f"\n [Early Stopping] Val Recall@1 did not improve for {patience} consecutive epochs. Terminating.")
             break
 
-    print('\n================ Training Summary ================')
+    print('\n================ Seed Run Summary ================')
     print(f'Best Validation Recall@1: {best_val_ratio:.4f}')
     print(f'Model weights & history saved to: {output_dir}')
+    return best_val_ratio
 
 
 def main():
@@ -321,8 +311,9 @@ def main():
         if path and not os.path.isabs(path):
             config['paths'][key] = os.path.join(PROJECT_ROOT, path)
 
-    # Auto-resolve multi-stage checkpoints and output directories
+    # Auto-resolve multi-stage checkpoints and base output directory
     auto_smiles_ckpt, auto_ir_ckpt = resolve_multi_stage_checkpoints_and_paths(config, PROJECT_ROOT)
+    base_output_dir = config['paths']['output_dir']
 
     # Setup device
     if config['training_params']['device'] == 'auto':
@@ -331,58 +322,103 @@ def main():
         device = torch.device(config['training_params']['device'])
     print(f"Using device: {device}")
 
-    # Initialize models
-    print("Initializing models...")
-    ir_model_config = config['model_params']['ir_model']
-    IR_model = IRModel(**ir_model_config)
-    smiles_model_config = config['model_params']['smiles_model']
-    Smiles_Model = SmilesModel(roberta_model_path=None, roberta_tokenizer_path=config['paths']['tokenizer'],
-                               **smiles_model_config)
-
-    print(f"SmilesModel Parameters: {count_parameters(Smiles_Model)}")
-    print(f"IR_model Parameters: {count_parameters(IR_model)}")
-
-    IR_model.to(device)
-    Smiles_Model.to(device)
-
-    # Checkpoint loading priority: Config explicit path > Auto-resolved multi-stage path
-    final_ir_ckpt = config['paths'].get('ir_model_check_point') or auto_ir_ckpt
-    if final_ir_ckpt and os.path.exists(final_ir_ckpt):
-        IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location=device))
-        print(f"✅ Loaded IR_model checkpoint from: {final_ir_ckpt}")
+    # =========================================================================
+    # Parse Seed List: Prefer 'seeds' list, fallback to single 'seed', default to [42]
+    # =========================================================================
+    seeds_cfg = config['training_params'].get('seeds')
+    if seeds_cfg is not None:
+        seeds = seeds_cfg if isinstance(seeds_cfg, list) else [seeds_cfg]
     else:
-        print("ℹ️ Training IR_model from scratch.")
+        single_seed = config['training_params'].get('seed', 42)
+        seeds = [single_seed]
 
-    final_smiles_ckpt = config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
-    if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
-        Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location=device))
-        print(f"✅ Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
-    else:
-        print("ℹ️ Training Smiles_Model from scratch.")
+    print(f"\nTarget Experiment Seed(s): {seeds} (Total runs: {len(seeds)})")
 
-    # Load data
-    print("Loading datasets...")
+    # Load raw data once to avoid repeated disk I/O
+    print("Preloading dataset into memory...")
     smiles_train, ir_train = load_smiles_ir(config['paths']['train_smiles'], config['paths']['train_ir'])
     smiles_val, ir_val = load_smiles_ir(config['paths']['val_smiles'], config['paths']['val_ir'])
 
-    train_dataset = IRSmilesDataset(ir_train, smiles_train)
-    val_dataset = IRSmilesDataset(ir_val, smiles_val)
+    all_seed_results = {}
 
-    dl_params = config['dataloader_params']
-    train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False)
+    # =========================================================================
+    # Outer Loop for Multi-Seed Experiments
+    # =========================================================================
+    for idx, current_seed in enumerate(seeds, 1):
+        print(f"\n{'='*30} [RUN {idx}/{len(seeds)}] EXECUTING SEED {current_seed} {'='*30}")
+        set_seed(current_seed)
 
-    print(f"Training samples  : {len(train_dataset)}")
-    print(f"Validation samples: {len(val_dataset)}")
+        # Isolate directory to seed_{current_seed} during multi-seed runs to prevent overwriting
+        run_config = copy.deepcopy(config)
+        if len(seeds) > 1:
+            run_config['paths']['output_dir'] = os.path.join(base_output_dir, f"seed_{current_seed}")
+        else:
+            run_config['paths']['output_dir'] = base_output_dir
 
-    # Setup optimizer
-    opt_params = config['optimizer_params']
-    optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), 
-                      lr=opt_params['learning_rate'],
-                      weight_decay=opt_params['weight_decay'])
+        # Reconstruct independent DataLoaders before each run (shuffle using the current seed's RNG)
+        train_dataset = IRSmilesDataset(ir_train, smiles_train)
+        val_dataset = IRSmilesDataset(ir_val, smiles_val)
+        dl_params = run_config['dataloader_params']
+        
+        # Use a seed-specific PyTorch Generator to ensure strictly reproducible shuffling
+        g = torch.Generator()
+        g.manual_seed(current_seed)
+        train_loader = DataLoader(train_dataset, batch_size=dl_params['batch_size'], shuffle=True, generator=g)
+        val_loader = DataLoader(val_dataset, batch_size=dl_params['batch_size'], shuffle=False)
 
-    # Start training loop
-    train_model(config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device)
+        # Re-initialize model architectures
+        ir_model_config = run_config['model_params']['ir_model']
+        IR_model = IRModel(**ir_model_config)
+        smiles_model_config = run_config['model_params']['smiles_model']
+        Smiles_Model = SmilesModel(roberta_model_path=None, roberta_tokenizer_path=run_config['paths']['tokenizer'],
+                                   **smiles_model_config)
+
+        IR_model.to(device)
+        Smiles_Model.to(device)
+
+        # Reload Stage I/II pre-trained weights
+        final_ir_ckpt = run_config['paths'].get('ir_model_check_point') or auto_ir_ckpt
+        if final_ir_ckpt and os.path.exists(final_ir_ckpt):
+            IR_model.load_state_dict(torch.load(final_ir_ckpt, map_location=device))
+            print(f" [Seed {current_seed}] Loaded IR_model checkpoint from: {final_ir_ckpt}")
+        else:
+            print(f" [Seed {current_seed}] Training IR_model from scratch.")
+
+        final_smiles_ckpt = run_config['paths'].get('smiles_model_check_point') or auto_smiles_ckpt
+        if final_smiles_ckpt and os.path.exists(final_smiles_ckpt):
+            Smiles_Model.load_state_dict(torch.load(final_smiles_ckpt, map_location=device))
+            print(f" [Seed {current_seed}] Loaded Smiles_Model checkpoint from: {final_smiles_ckpt}")
+        else:
+            print(f" [Seed {current_seed}] Training Smiles_Model from scratch.")
+
+        # Re-initialize optimizer
+        opt_params = run_config['optimizer_params']
+        optimizer = AdamW(list(Smiles_Model.parameters()) + list(IR_model.parameters()), 
+                          lr=opt_params['learning_rate'],
+                          weight_decay=opt_params['weight_decay'])
+
+        # Execute single training run
+        best_val_r1 = train_model(run_config, Smiles_Model, IR_model, train_loader, val_loader, optimizer, device)
+        all_seed_results[f"seed_{current_seed}"] = best_val_r1
+
+    # =========================================================================
+    # Aggregated Summary for Multi-Seed Experiments
+    # =========================================================================
+    if len(seeds) > 1:
+        print(f"\n{'='*25} Multi-Seed Triplicate Summary {'='*25}")
+        r1_scores = list(all_seed_results.values())
+        for seed_k, score in all_seed_results.items():
+            print(f"  {seed_k}: Best Val Recall@1 = {score:.4f}")
+        print(f"  --> Mean Recall@1: {np.mean(r1_scores):.4f} ± {np.std(r1_scores):.4f}")
+        
+        summary_path = os.path.join(base_output_dir, "multi_seed_summary.json")
+        with open(summary_path, 'w', encoding='utf-8') as f:
+            json.dump({
+                "individual_runs": all_seed_results,
+                "mean_recall_at_1": float(np.mean(r1_scores)),
+                "std_recall_at_1": float(np.std(r1_scores))
+            }, f, indent=4)
+        print(f"Saved aggregated multi-seed summary to: {summary_path}")
 
 
 if __name__ == '__main__':
