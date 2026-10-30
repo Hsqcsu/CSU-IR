@@ -30,6 +30,12 @@ training_params:
   num_epochs: 1000    # Governed by early stopping
   patience: 15        # Early stopping patience on Val Recall@1
   device: auto
+  # =========================================================================
+  # Random Seed Settings:
+  # 1) Standard single run: seeds: [42]
+  # 2) Triplicate runs: seeds: [42, 420, 4200]
+  # =========================================================================
+  seeds: [42, 420, 4200] 
 
 dataloader_params:
   batch_size: 208
