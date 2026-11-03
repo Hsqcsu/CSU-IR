@@ -141,12 +141,12 @@ Scripts for testing and inference are available in the respective project folder
 
 we provide a unified evaluation script ( [`CSU-IR/headline_results_evaluations/run_headline_evaluations.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/headline_results_evaluations/run_headline_evaluations.py)) to reproduce all headline metrics and downstream analyses reported in our manuscript directly from pre-trained checkpoints.
 
-👉 **Please refer to [REPRODUCE.md](REPRODUCE.md) for the complete step-by-step reproduction guide.**
+👉 **Please refer to [REPRODUCE.md](REPRODUCE.md) for guide.**
 
 **Quick Command:**
 ```bash
-# Run with default settings (available tasks: retrieval_100m, functional_groups, ood, ps, all)
-python run_headline_evaluations.py --task retrieval_100m
+cd CSU-IR/CSU-IR/headline_results_evaluations
+python run_headline_evaluations.py --task retrieval_100m --gpu_ids 0
 ```
 
 > **✨ Use custom Libraries!**  
