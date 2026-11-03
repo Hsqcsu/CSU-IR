@@ -895,7 +895,6 @@ def main():
                         default=os.path.join(PROJECT_ROOT, "model", "tokenizer-smiles-roberta-1e_new"))
     parser.add_argument('--db_dir', type=str, 
                         default=os.path.join(PROJECT_ROOT, "data", "100-Million-library-Retrieval"))
-    parser.add_argument('--eval_full_scale', action='store_true', help="Evaluate all 5 scales (1w to 100M); default evaluates 3 scales (1w to 100w).")
 
     # Paths for Task 3 (OOD) & Task 4 (PS)
     parser.add_argument('--ir_weights_PS', type=str, 
