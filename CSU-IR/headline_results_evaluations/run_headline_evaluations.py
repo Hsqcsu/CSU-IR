@@ -3,10 +3,10 @@
 ================================================================================
 Unified Inference & Evaluation Entrypoint for Headline Experimental Results
 Supported Tasks:
-  1. retrieval_100m     - 100-Million-Scale IR-to-SMILES Retrieval (Public data & weights)
-  2. functional_groups  - Functional Group Detection & Candidate Similarity (Public data & weights)
+  1. retrieval_100m     - 100-Million-Scale Retrieval (Public data & weights)
+  2. functional_groups  - Functional Group Detection (Public data & weights)
   3. ood                - Out-of-Distribution (OOD) Generalization Evaluation (User data required)
-  4. ps                 - Psychoactive Substance (NPS) Retrieval Across 3 Libraries (User data required)
+  4. ps                 - NPS Identification (User data required)
   5. all                - Run all tasks sequentially
 ================================================================================
 """
