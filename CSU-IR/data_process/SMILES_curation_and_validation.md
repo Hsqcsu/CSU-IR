@@ -1,4 +1,4 @@
-# This Markdown file provides a detailed description of the processing procedure for SMILES of the experimental data used in CSU-IR.
+# Detailed description of the processing procedure for SMILES of the experimental data used in CSU-IR.
 ---
 
 ## 1. SMILES quering and label verification
