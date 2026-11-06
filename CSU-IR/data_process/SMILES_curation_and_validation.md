@@ -21,6 +21,7 @@ To ensure one-to-one fidelity between IR and its chemical structure:
 In standard chemoinformatics applications, salts are often stripped (desalted) to map compounds to a parent neutral molecule. However, **infrared spectroscopy directly measures molecular vibrational modes, which are drastically altered by ionic interactions and protonation states**. Figure 1 illustrate the difference. Artificially stripping salts from the target SMILES introduces an irreconcilable physical discrepancy between the experimental spectrum and the structural representation.  
 
 <img width="865" height="685" alt="image" src="https://github.com/user-attachments/assets/1eab7721-de91-4fa4-91e3-67f9473efea2" />
+
 *(Figure 1: Distinct infrared spectral profiles between free base and hydrochloride salt forms of representative compounds (a 4'-Methyl-alpha-pyrrolidinobutyrophenone MPBP; b 4-CIC).)*
 
 To quantify this discrepancy, we analyzed the spectral similarity and latent embedding space of representative free bases and their hydrochloride (HCl) salts (e.g., MPBP and 4-CIC):
