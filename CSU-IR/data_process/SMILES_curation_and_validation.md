@@ -26,7 +26,7 @@ In standard chemoinformatics applications, salts are often stripped (desalted) t
 
 To quantify this discrepancy, we analyzed the spectral similarity and latent embedding space of representative free bases and their hydrochloride (HCl) salts (e.g., MPBP and 4-CIC):
 
-| Compound | Intra-Modal IR Similarity (HCl vs. Base) - Raw Spectra | Intra-Modal IR Similarity (HCl vs. Base) - IR Latent Embeddings | Cross-Modal Similarity (IR vs. Base SMILES) - Base IR | Cross-Modal Similarity (IR vs. Base SMILES) - HCl IR |
+| Compound | Raw IR Similarity (HCl vs. Base) | IR Latent Embeddings Similarity (HCl vs. Base) | Cross-Modal Similarity (Base IR vs. Base SMILES) | Cross-Modal Similarity (HCl IR vs. Base SMILES) |
 | :--- | :---: | :---: | :---: | :---: |
 | **4'-Methyl-alpha-pyrrolidinobutyrophenone (MPBP)** | 0.6791 | 0.5136 | 0.1735 | **0.0656** |
 | **4-CIC** | 0.5870 | 0.4150 | 0.1341 | **0.0955** |
