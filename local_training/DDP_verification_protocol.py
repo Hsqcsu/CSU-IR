@@ -5,9 +5,15 @@ import torch.distributed as dist
 import torch.distributed.nn as dist_nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 
-# Import model definitions
-from ir_CNN_VIT_TR import IRModel
-from add_new_tokens_smiles_model import SmilesModel
+# Ensure project root is in system path
+PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'CSU-IR'))
+if not os.path.exists(PROJECT_ROOT):
+    # Fallback to local script relative path
+    PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, PROJECT_ROOT)
+
+from model.IR_encoder import IRModel
+from model.SMILES_encoder import SmilesModel
 
 
 # =====================================================================
