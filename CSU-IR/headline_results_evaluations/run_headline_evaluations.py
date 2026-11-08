@@ -323,7 +323,8 @@ def run_retrieval_100m(args):
 
     orig_chunk_sizes = get_chunk_sizes(args.db_dir, prefix="meta_chunk_", num_chunks=54)
 
-    scales = {"10k": 10000, "100k": 100000, "1 Million": 1000000, "10 Million": 10000000, "100 Million": 100000000}
+    #scales = {"10k": 10000, "100k": 100000, "1 Million": 1000000, "10 Million": 10000000, "100 Million": 100000000}
+    scales = {"100 Million": 100000000}
 
     k_list = [1, 5, 10, 50, 100]
 
