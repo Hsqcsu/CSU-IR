@@ -3,10 +3,10 @@
 ================================================================================
 Unified Inference & Evaluation Entrypoint for Headline Experimental Results
 Supported Tasks:
-  1. retrieval_100m     - 100-Million-Scale Retrieval (Public data & weights)
-  2. functional_groups  - Functional Group Detection (Public data & weights)
+  1. retrieval_100m     - 100-Million-Scale IR-to-SMILES Retrieval (Public data & weights)
+  2. functional_groups  - Functional Group Detection & Candidate Similarity (Public data & weights)
   3. ood                - Out-of-Distribution (OOD) Generalization Evaluation (User data required)
-  4. ps                 - NPS Identification (User data required)
+  4. ps                 - Psychoactive Substance (NPS) Retrieval Across 3 Libraries (User data required)
   5. all                - Run all tasks sequentially
 ================================================================================
 """
@@ -122,6 +122,7 @@ def get_all_fragments(smiles: str):
         pass
     return present_groups
 
+
 # ==============================================================================
 # Task 1: 100-Million-Scale Compound Retrieval
 # ==============================================================================
@@ -133,21 +134,25 @@ def load_chunk_meta_fast(tsv_path):
     cache_mw = tsv_path.replace(".tsv", "_mw.npy")
     cache_hash = tsv_path.replace(".tsv", "_hash.npy")
     if os.path.exists(cache_mw) and os.path.exists(cache_hash):
-        return np.load(cache_mw), np.load(cache_hash)
-    df = pd.read_csv(tsv_path, sep='\t', header=None, usecols=[2, 3], names=['mw', 'form'], dtype={'mw': np.float32, 'form': str})
-    df['mw'] = df['mw'].fillna(0.0)
-    df['form'] = df['form'].fillna("N/A")
-    bg_mws = df['mw'].values.astype(np.float32)
-    bg_formulas_hash = np.array([formula_to_hash_id(f) for f in df['form']], dtype=np.int64)
-    np.save(cache_mw, bg_mws)
-    np.save(cache_hash, bg_formulas_hash)
+        bg_mws = np.load(cache_mw)
+        bg_formulas_hash = np.load(cache_hash)
+    else:
+        df = pd.read_csv(tsv_path, sep='\t', header=None, usecols=[2, 3],
+                         names=['mw', 'form'], dtype={'mw': np.float32, 'form': str})
+        df['mw'] = df['mw'].fillna(0.0)
+        df['form'] = df['form'].fillna("N/A")
+        bg_mws = df['mw'].values.astype(np.float32)
+        bg_formulas_hash = np.array([formula_to_hash_id(f) for f in df['form']], dtype=np.int64)
+        np.save(cache_mw, bg_mws)
+        np.save(cache_hash, bg_formulas_hash)
     return bg_mws, bg_formulas_hash
 
 def get_chunk_sizes(database_dir, prefix="meta_chunk_", num_chunks=54):
     sizes = []
     for i in range(num_chunks):
         tsv_path = os.path.join(database_dir, f"{prefix}{i}.tsv")
-        if not os.path.exists(tsv_path): break
+        if not os.path.exists(tsv_path): 
+            break
         cache_mw = tsv_path.replace(".tsv", "_mw.npy")
         if os.path.exists(cache_mw):
             sizes.append(len(np.load(cache_mw)))
@@ -158,7 +163,8 @@ def get_chunk_sizes(database_dir, prefix="meta_chunk_", num_chunks=54):
 
 def build_search_chunks_spec(scale_size, orig_chunk_sizes, db_dir):
     search_chunks = []
-    if scale_size == 0: return search_chunks
+    if scale_size == 0: 
+        return search_chunks
     np.random.seed(42)
     shuffled_indices = list(np.random.permutation(len(orig_chunk_sizes)))
     current_sum = 0
@@ -168,7 +174,8 @@ def build_search_chunks_spec(scale_size, orig_chunk_sizes, db_dir):
             search_chunks.append({
                 "dat_path": os.path.join(db_dir, f"features_chunk_{idx}.dat"),
                 "tsv_path": os.path.join(db_dir, f"meta_chunk_{idx}.tsv"),
-                "limit": None, "size": size
+                "limit": None, 
+                "size": size
             })
             current_sum += size
         else:
@@ -176,160 +183,256 @@ def build_search_chunks_spec(scale_size, orig_chunk_sizes, db_dir):
             search_chunks.append({
                 "dat_path": os.path.join(db_dir, f"features_chunk_{idx}.dat"),
                 "tsv_path": os.path.join(db_dir, f"meta_chunk_{idx}.tsv"),
-                "limit": needed, "size": needed
+                "limit": needed, 
+                "size": needed
             })
             current_sum += needed
             break
     return search_chunks
 
 def update_running_topk(sims, mask, global_offset, running_vals, running_idxs):
-    current_sims = sims.clone() if mask is None else sims.clone().masked_fill_(~mask, -float('inf'))
+    if mask is not None:
+        current_sims = sims.clone()
+        current_sims.masked_fill_(~mask, -float('inf'))
+    else:
+        current_sims = sims
+
     k = min(100, current_sims.shape[1])
     vals, idxs = torch.topk(current_sims, k=k, dim=1)
     global_idxs = idxs + global_offset
+
     comb_vals = torch.cat([running_vals, vals], dim=1)
     comb_idxs = torch.cat([running_idxs, global_idxs], dim=1)
+
     new_vals, topk_idx = torch.topk(comb_vals, k=100, dim=1)
     new_idxs = torch.gather(comb_idxs, dim=1, index=topk_idx)
+
     running_vals.copy_(new_vals)
     running_idxs.copy_(new_idxs)
 
 def search_worker_process(gpu_id, query_slice_indices, test_ir_feats, test_smiles_feats, 
-                          test_mws, test_formulas_hash, search_chunks, mw_tolerance, batch_size, return_dict):
+                          test_formulas_hash, search_chunks, return_dict):
     device = torch.device(f"cuda:{gpu_id}" if torch.cuda.is_available() else "cpu")
+    if torch.cuda.is_available():
+        torch.cuda.set_device(device)
+        torch.cuda.empty_cache()
+
     q_ir = test_ir_feats[query_slice_indices].to(device).half()
-    q_mws = torch.tensor(test_mws, dtype=torch.float32)[query_slice_indices].to(device)
     q_form_hash = torch.tensor(test_formulas_hash, dtype=torch.long)[query_slice_indices].to(device)
     n_queries = len(query_slice_indices)
 
-    running_vals_pure = torch.full((n_queries, 100), -float('inf'), device=device, dtype=torch.float16)
-    running_idxs_pure = torch.full((n_queries, 100), -1, dtype=torch.long, device=device)
-    running_vals_mw = torch.full((n_queries, 100), -float('inf'), device=device, dtype=torch.float16)
-    running_idxs_mw = torch.full((n_queries, 100), -1, dtype=torch.long, device=device)
     running_vals_form = torch.full((n_queries, 100), -float('inf'), device=device, dtype=torch.float16)
     running_idxs_form = torch.full((n_queries, 100), -1, dtype=torch.long, device=device)
 
     global_offset = 0
+    db_block_size = 100000
+    query_batch_size = 200
+
     for chunk_spec in search_chunks:
+        dat_path = chunk_spec["dat_path"]
+        tsv_path = chunk_spec["tsv_path"]
         limit = chunk_spec["limit"]
-        bg_features = np.fromfile(chunk_spec["dat_path"], dtype=np.float16).reshape(-1, 1024)
-        if limit is not None: bg_features = bg_features[:limit]
-        bg_mws, bg_formulas_hash = load_chunk_meta_fast(chunk_spec["tsv_path"])
+
+        bg_features = np.fromfile(dat_path, dtype=np.float16).reshape(-1, 1024)
         if limit is not None:
-            bg_mws, bg_formulas_hash = bg_mws[:limit], bg_formulas_hash[:limit]
+            bg_features = bg_features[:limit]
+        
+        _, bg_formulas_hash = load_chunk_meta_fast(tsv_path)
+        if limit is not None:
+            bg_formulas_hash = bg_formulas_hash[:limit]
 
-        bg_features_gpu = torch.from_numpy(bg_features).to(device)
-        bg_mws_gpu = torch.tensor(bg_mws, dtype=torch.float32, device=device)
-        bg_form_gpu = torch.tensor(bg_formulas_hash, dtype=torch.long, device=device)
-        num_elements = len(bg_features)
+        total_in_chunk = len(bg_features)
 
-        for q_start in range(0, n_queries, batch_size):
-            q_end = min(q_start + batch_size, n_queries)
-            batch_ir = q_ir[q_start:q_end]
-            sims = torch.matmul(batch_ir, bg_features_gpu.t())
+        for b_start in range(0, total_in_chunk, db_block_size):
+            b_end = min(b_start + db_block_size, total_in_chunk)
+            sub_bg_feat = torch.from_numpy(bg_features[b_start:b_end]).to(device)
+            sub_bg_feat = torch.nn.functional.normalize(sub_bg_feat, p=2, dim=-1)
+            sub_bg_form = torch.tensor(bg_formulas_hash[b_start:b_end], dtype=torch.long, device=device)
 
-            update_running_topk(sims, None, global_offset, running_vals_pure[q_start:q_end], running_idxs_pure[q_start:q_end])
-            mw_mask = torch.abs(q_mws[q_start:q_end].unsqueeze(1) - bg_mws_gpu.unsqueeze(0)) <= mw_tolerance
-            update_running_topk(sims, mw_mask, global_offset, running_vals_mw[q_start:q_end], running_idxs_mw[q_start:q_end])
-            form_mask = (q_form_hash[q_start:q_end].unsqueeze(1) == bg_form_gpu.unsqueeze(0))
-            update_running_topk(sims, form_mask, global_offset, running_vals_form[q_start:q_end], running_idxs_form[q_start:q_end])
+            curr_offset = global_offset + b_start
 
-        global_offset += num_elements
-        del bg_features_gpu, bg_mws_gpu, bg_form_gpu
-        if torch.cuda.is_available(): torch.cuda.empty_cache()
+            for q_start in range(0, n_queries, query_batch_size):
+                q_end = min(q_start + query_batch_size, n_queries)
+                batch_ir = q_ir[q_start:q_end]
+                batch_form = q_form_hash[q_start:q_end]
 
-    # Append Target (One-by-One Evaluation Setup)
+                with torch.no_grad():
+                    sims = torch.matmul(batch_ir, sub_bg_feat.t())
+
+                    form_mask = (batch_form.unsqueeze(1) == sub_bg_form.unsqueeze(0))
+                    update_running_topk(sims, form_mask, curr_offset, 
+                                        running_vals_form[q_start:q_end], running_idxs_form[q_start:q_end])
+
+            del sub_bg_feat, sub_bg_form
+
+        global_offset += total_in_chunk
+
     test_smiles_gpu = test_smiles_feats[query_slice_indices].to(device).half()
-    for q_start in range(0, n_queries, batch_size):
-        q_end = min(q_start + batch_size, n_queries)
-        sims_self = torch.sum(q_ir[q_start:q_end] * test_smiles_gpu[q_start:q_end], dim=-1, keepdim=True)
-        batch_global_indices = torch.tensor(global_offset + query_slice_indices[q_start:q_end], device=device, dtype=torch.long).unsqueeze(1)
-        self_mask = torch.ones_like(sims_self, dtype=torch.bool, device=device)
+    test_smiles_gpu = torch.nn.functional.normalize(test_smiles_gpu, p=2, dim=-1)
 
-        update_running_topk(sims_self, None, batch_global_indices, running_vals_pure[q_start:q_end], running_idxs_pure[q_start:q_end])
-        update_running_topk(sims_self, self_mask, batch_global_indices, running_vals_mw[q_start:q_end], running_idxs_mw[q_start:q_end])
-        update_running_topk(sims_self, self_mask, batch_global_indices, running_vals_form[q_start:q_end], running_idxs_form[q_start:q_end])
+    for q_start in range(0, n_queries, query_batch_size):
+        q_end = min(q_start + query_batch_size, n_queries)
+        batch_ir = q_ir[q_start:q_end]
+        batch_smiles = test_smiles_gpu[q_start:q_end]
+
+        with torch.no_grad():
+            sims_self = torch.sum(batch_ir * batch_smiles, dim=-1, keepdim=True)
+            batch_global_indices = torch.tensor(
+                global_offset + query_slice_indices[q_start:q_end], 
+                device=device, 
+                dtype=torch.long
+            ).unsqueeze(1)
+
+            self_mask = torch.ones_like(sims_self, dtype=torch.bool, device=device)
+
+            update_running_topk(sims_self, self_mask, batch_global_indices, 
+                                running_vals_form[q_start:q_end], running_idxs_form[q_start:q_end])
 
     return_dict[gpu_id] = {
-        "pure_idxs": running_idxs_pure.cpu().numpy(),
-        "mw_idxs": running_idxs_mw.cpu().numpy(),
-        "form_idxs": running_idxs_form.cpu().numpy()
+        "form_idxs": running_idxs_form.cpu().numpy(),
     }
+    
+def evaluate_single_mode(top_idxs, q_idx, target_sm_norm, resolved_metadata):
+    for rank, g_idx in enumerate(top_idxs[q_idx]):
+        if g_idx == -1:
+            continue
+        meta = resolved_metadata.get(g_idx, None)
+        if meta is None:
+            continue
+        cand_smiles = meta["smiles"]
+        if cand_smiles == target_sm_norm:
+            return rank
+        cand_sm_norm = normalize_smiles(cand_smiles)
+        if cand_sm_norm == target_sm_norm:
+            return rank
+    return -1
 
 def run_retrieval_100m(args):
     print("\n" + "=" * 80)
-    print(" [Task 1] 100-million-scale Compound Retrieval Evaluation")
+    print(" [Task 1] 100-Million-Scale Compound Retrieval Evaluation (Formula Filtered)")
     print("=" * 80)
 
+    try:
+        mp.set_start_method('spawn', force=True)
+    except RuntimeError:
+        pass
+
     if not os.path.exists(args.test_descr) or not os.path.exists(args.test_ir):
-        print(f"[Error] Required dataset files not found:\n  {args.test_descr}\n  {args.test_ir}")
+        print(f"[Error] Required test files missing:\n  {args.test_descr}\n  {args.test_ir}")
         return
 
-    test_cids, test_smiles, test_mws, test_formulas, test_formulas_hash = [], [], [], [], []
+    test_cids, test_smiles_raw, test_smiles = [], [], []
+    test_formulas, test_formulas_hash = [], []
+
+    #print("--> Loading and parsing test SMILES...")
     with open(args.test_descr, 'r', encoding='utf-8') as f:
         for idx, line in enumerate(f):
             parts = line.strip().split('\t')
-            cid, smiles = (parts[0], parts[1]) if len(parts) >= 2 else (f"test_{idx}", parts[0])
+            if len(parts) >= 2:
+                cid, smiles = parts[0], parts[1]
+            else:
+                parts = line.strip().split()
+                if not parts: 
+                    continue
+                cid, smiles = f"test_{idx}", parts[0]
+            
             norm_sm = normalize_smiles(smiles)
             try:
                 mol = Chem.MolFromSmiles(norm_sm)
-                mw = rdMolDescriptors.CalcExactMolWt(mol) if mol else 0.0
-                formula = rdMolDescriptors.CalcMolFormula(mol) if mol else "N/A"
-            except:
-                mw, formula = 0.0, "N/A"
+                formula = rdMolDescriptors.CalcMolFormula(mol) if mol is not None else "N/A"
+            except Exception:
+                formula = "N/A"
+            
             test_cids.append(cid)
+            test_smiles_raw.append(smiles)
             test_smiles.append(norm_sm)
-            test_mws.append(mw)
             test_formulas.append(formula)
             test_formulas_hash.append(formula_to_hash_id(formula))
 
-    df_test = pd.DataFrame({'cid': test_cids, 'smiles': test_smiles, 'mw': test_mws, 'form': test_formulas, 'hash': test_formulas_hash, 'idx': range(len(test_cids))})
-    df_test = df_test.drop_duplicates(subset=['smiles'], keep='first')
-    df_test = df_test[df_test['smiles'].apply(lambda s: contains_C_and_H(s)[0])]
-    kept_indices = df_test['idx'].values
+    #print(f"--> Loaded and normalized test molecules: {len(test_smiles)}")
 
-    test_cids = df_test['cid'].tolist()
-    test_smiles = df_test['smiles'].tolist()
-    test_mws = df_test['mw'].tolist()
-    test_formulas_hash = df_test['hash'].tolist()
+    test_ir_raw = torch.load(args.test_ir, map_location='cpu')
+    if not isinstance(test_ir_raw, torch.Tensor):
+        test_ir_raw = torch.tensor(test_ir_raw)
+
+    #print("--> Filtering duplicate molecules and inorganic compounds...")
+    df_test = pd.DataFrame({
+        'cid': test_cids,
+        'smiles_raw': test_smiles_raw,
+        'smiles_norm': test_smiles,
+        'formula': test_formulas,
+        'formula_hash': test_formulas_hash,
+        'original_idx': range(len(test_cids))
+    })
+    
+    df_test_unique = df_test.drop_duplicates(subset=['smiles_norm'], keep='first')
+    dedup_count = len(df_test_unique)
+    is_ch_mask = df_test_unique['smiles_norm'].apply(lambda s: contains_C_and_H(s)[0])
+    df_test_filtered = df_test_unique[is_ch_mask]
+    
+    inorganic_count = dedup_count - len(df_test_filtered)
+    kept_indices = df_test_filtered['original_idx'].values
+    
+    test_cids = df_test_filtered['cid'].tolist()
+    test_smiles = df_test_filtered['smiles_norm'].tolist()
+    test_formulas_hash = df_test_filtered['formula_hash'].tolist()
+    test_ir_raw = test_ir_raw[kept_indices]
     n_queries = len(test_smiles)
 
-    test_ir_raw = torch.load(args.test_ir, map_location='cpu')[kept_indices]
+    #print(f"--> Raw: {len(df_test)} | Unique: {dedup_count} | Removed Inorganics: {inorganic_count}")
+    #print(f"--> Valid evaluation queries: {n_queries}")
 
-    device = torch.device(f"cuda:{args.gpu_ids[0]}" if torch.cuda.is_available() else "cpu")
-    ir_model = IRModel().to(device)
+    device_main = torch.device(f"cuda:{args.gpu_ids[0]}" if torch.cuda.is_available() else "cpu")
+    #print("--> Encoding test IR spectra features...")
+    ir_model = IRModel().to(device_main)
     ir_model.load_weights(args.ir_weights)
     ir_model.eval()
 
+    encoded_ir_list = []
     with torch.no_grad():
-        test_ir_feats = torch.cat([ir_model(test_ir_raw[i:i+512].to(device)).cpu() for i in range(0, len(test_ir_raw), 512)], dim=0)
-    test_ir_feats = F.normalize(test_ir_feats, p=2, dim=-1)
+        for i in range(0, len(test_ir_raw), 512):
+            batch_ir = test_ir_raw[i:i+512].to(device_main)
+            encoded_ir_list.append(ir_model(batch_ir).cpu())
+    test_ir_feats = torch.cat(encoded_ir_list, dim=0)
+    test_ir_feats = torch.nn.functional.normalize(test_ir_feats, p=2, dim=-1)
 
+    #print("--> Encoding test SMILES features...")
     smiles_model = SmilesModel(
-        roberta_model_path=None, roberta_tokenizer_path=args.tokenizer_path,
-        smiles_maxlen=300, max_position_embeddings=505, vocab_size=181, feature_dim=768
-    ).to(device)
-    smiles_model.load_state_dict(torch.load(args.smiles_weights, map_location=device))
+        roberta_model_path=None,
+        roberta_tokenizer_path=args.tokenizer_path,
+        smiles_maxlen=300, 
+        feature_dim=768
+    ).to(device_main)
+    smiles_model.load_state_dict(torch.load(args.smiles_weights, map_location=device_main))
     smiles_model.eval()
-
     tokenizer = smiles_model.smiles_tokenizer
-    encoded_sm_list = []
+
+    encoded_smiles_list = []
     with torch.no_grad():
-        for i in range(0, n_queries, 256):
-            enc = tokenizer.batch_encode_plus(test_smiles[i:i+256], max_length=300, padding='max_length', truncation=True, return_tensors='pt')
-            feats = smiles_model.encode((enc['input_ids'].to(device), enc['attention_mask'].to(device)), enc['attention_mask'].sum(dim=1).to(device))
-            encoded_sm_list.append(feats.cpu())
-    test_smiles_feats = F.normalize(torch.cat(encoded_sm_list, dim=0), p=2, dim=-1)
+        for i in range(0, len(test_smiles), 256):
+            batch_sm = test_smiles[i:i+256]
+            encoded = tokenizer.batch_encode_plus(
+                batch_sm, max_length=300, padding='max_length', truncation=True, return_tensors='pt'
+            )
+            input_ids = encoded['input_ids'].to(device_main)
+            attention_mask = encoded['attention_mask'].to(device_main)
+            lengths = attention_mask.sum(dim=1)
+            with torch.cuda.amp.autocast():
+                feats = smiles_model.encode((input_ids, attention_mask), lengths)
+            encoded_smiles_list.append(feats.cpu())
+    test_smiles_feats = torch.cat(encoded_smiles_list, dim=0)
+    test_smiles_feats = torch.nn.functional.normalize(test_smiles_feats, p=2, dim=-1)
+
+    del ir_model, smiles_model
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
 
     orig_chunk_sizes = get_chunk_sizes(args.db_dir, prefix="meta_chunk_", num_chunks=54)
-
-    #scales = {"10k": 10000, "100k": 100000, "1 Million": 1000000, "10 Million": 10000000, "100 Million": 100000000}
     scales = {"100 Million": 100000000}
-
-    k_list = [1, 5, 10, 50, 100]
+    k_list = [1, 5, 10, 20, 30, 50, 100]
 
     for scale_name, scale_size in scales.items():
-        print(f"\n>>>> Searching against Library Scale: {scale_size} <<<<")
+        print(f"\n>>>> Searching against Library Scale: {scale_name} ({scale_size}) <<<<")
         search_chunks = build_search_chunks_spec(scale_size, orig_chunk_sizes, args.db_dir)
         actual_bg_size = sum(c["size"] for c in search_chunks)
 
@@ -338,24 +441,25 @@ def run_retrieval_100m(args):
         indices_split = np.array_split(np.arange(n_queries), len(args.gpu_ids))
 
         processes = []
-        for rank, gpu_id in enumerate(args.gpu_ids):
-            p = mp.Process(target=search_worker_process, args=(gpu_id, indices_split[rank], test_ir_feats, test_smiles_feats, test_mws, test_formulas_hash, search_chunks, 0.5, 500, return_dict))
+        for idx, gpu_id in enumerate(args.gpu_ids):
+            p = mp.Process(
+                target=search_worker_process, 
+                args=(
+                    gpu_id, indices_split[idx], test_ir_feats, test_smiles_feats, 
+                    test_formulas_hash, search_chunks, return_dict
+                )
+            )
             p.start()
             processes.append(p)
-        for p in processes: p.join()
+        for p in processes: 
+            p.join()
 
-        all_pure_idxs = np.zeros((n_queries, 100), dtype=np.int64)
-        all_mw_idxs = np.zeros((n_queries, 100), dtype=np.int64)
         all_form_idxs = np.zeros((n_queries, 100), dtype=np.int64)
+        for idx, gpu_id in enumerate(args.gpu_ids):
+            slice_idx = indices_split[idx]
+            all_form_idxs[slice_idx] = return_dict[gpu_id]["form_idxs"]
 
-        for rank, gpu_id in enumerate(args.gpu_ids):
-            all_pure_idxs[indices_split[rank]] = return_dict[gpu_id]["pure_idxs"]
-            all_mw_idxs[indices_split[rank]] = return_dict[gpu_id]["mw_idxs"]
-            all_form_idxs[indices_split[rank]] = return_dict[gpu_id]["form_idxs"]
-
-        unique_idxs_needed = set()
-        for arr in [all_pure_idxs, all_mw_idxs, all_form_idxs]:
-            unique_idxs_needed.update(arr.flatten())
+        unique_idxs_needed = set(all_form_idxs.flatten())
         unique_idxs_needed.discard(-1)
 
         resolved_metadata = {}
@@ -375,7 +479,8 @@ def run_retrieval_100m(args):
                 chunk_to_local_lines[chunk_idx].append((local_line, g_idx))
 
         for chunk_idx, lines_info in chunk_to_local_lines.items():
-            if not lines_info: continue
+            if not lines_info: 
+                continue
             lines_info.sort(key=lambda x: x[0])
             local_lines = [x[0] for x in lines_info]
             global_indices = [x[1] for x in lines_info]
@@ -384,39 +489,30 @@ def run_retrieval_100m(args):
             df_chunk = pd.read_csv(tsv_path, sep='\t', header=None, usecols=[1], names=['smiles'])
             selected_smiles = df_chunk.iloc[local_lines]['smiles'].values
             for g_idx, sm in zip(global_indices, selected_smiles):
-                resolved_metadata[g_idx] = normalize_smiles(str(sm))
+                resolved_metadata[g_idx] = {"smiles": str(sm)}
 
         for g_idx in test_indices:
-            resolved_metadata[g_idx] = test_smiles[g_idx - actual_bg_size]
+            local_idx = g_idx - actual_bg_size
+            resolved_metadata[g_idx] = {"smiles": test_smiles[local_idx]}
 
-        def get_rank_by_smiles(pred_top100_idxs, target_sm):
-            for rank, g_idx in enumerate(pred_top100_idxs):
-                if g_idx == -1: continue
-                if resolved_metadata.get(g_idx) == target_sm:
-                    return rank
-            return -1
-
-        recalls_pure = {k: 0 for k in k_list}
-        recalls_mw = {k: 0 for k in k_list}
-        recalls_form = {k: 0 for k in k_list}
-
+        recalls_form = {k: 0.0 for k in k_list}
         for q_idx in range(n_queries):
-            target_sm = test_smiles[q_idx]
-            r_pure = get_rank_by_smiles(all_pure_idxs[q_idx], target_sm)
-            r_mw = get_rank_by_smiles(all_mw_idxs[q_idx], target_sm)
-            r_form = get_rank_by_smiles(all_form_idxs[q_idx], target_sm)
-
+            target_sm_norm = test_smiles[q_idx]
+            form_rank = evaluate_single_mode(all_form_idxs, q_idx, target_sm_norm, resolved_metadata)
             for k in k_list:
-                if r_pure != -1 and r_pure < k: recalls_pure[k] += 1
-                if r_mw != -1 and r_mw < k: recalls_mw[k] += 1
-                if r_form != -1 and r_form < k: recalls_form[k] += 1
+                if form_rank != -1 and form_rank < k: 
+                    recalls_form[k] += 1
 
-        print("-" * 88)
-        print(f"| {'Scale: ' + scale_name:<20} | {'Recall@1':<10} | {'Recall@5':<10} | {'Recall@10':<10} | {'Recall@50':<10} | {'Recall@100':<10} |")
-        print("-" * 88)
-        for name, r_dict in [("IR only", recalls_pure), ("MW filtered (±0.5 Da)", recalls_mw), ("Formula filtered", recalls_form)]:
-            print(f"| {name:<20} | {r_dict[1]/n_queries*100:>8.2f}% | {r_dict[5]/n_queries*100:>8.2f}% | {r_dict[10]/n_queries*100:>8.2f}% | {r_dict[50]/n_queries*100:>8.2f}% | {r_dict[100]/n_queries*100:>8.2f}% |")
-        print("-" * 88)
+        for k in k_list:
+            recalls_form[k] /= n_queries
+
+        #print(f"\n[Task 1 Evaluation Report] Scale: {scale_name} (Evaluated Queries: {n_queries})")
+        header_str = f"{'Strategy':<18}" + "".join([f"{f'R@{k}':<9}" for k in k_list])
+        print(header_str)
+        print("-" * 80)
+        print(f"{'IR + Formula':<18}" + "".join([f"{recalls_form[k]*100:.2f}%   " for k in k_list]))
+        print("-" * 80)
+
 
 # ==============================================================================
 # Task 2: Functional Group Detection
