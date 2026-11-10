@@ -9,11 +9,15 @@ def unified_preprocess_spectrum(
     target_start=500.0,
     target_end=4000.0,
     num_points=3500,
+    bypass_domain_conversion=False,
+    interp_kind="linear",
 ):
     """Unified standard physical preprocessing pipeline for IR spectra.
 
-    Strictly applies: Truncation of out-of-range ends, flat-padding with edge values 
-    for missing ends, linear interpolation within the measured region, and normalization to [0, 1].
+    Strictly applies: Data cleaning/sorting, unification into the absorbance domain 
+    (bypassed for pre-converted SDBS data and natively generated simulated absorbance spectra), 
+    truncation of out-of-range ends, flat-padding with edge values for missing ends, 
+    interpolation within the measured region, and Min-Max normalization to [0, 1].
     """
     try:
         wn = np.array(wavenumbers, dtype=np.float64)
@@ -31,39 +35,45 @@ def unified_preprocess_spectrum(
         wn = wn[sort_idx]
         spec = spec[sort_idx]
 
-        # 3. Determine spectrum type (Transmittance vs. Absorbance)
-        y_max = np.max(spec)
-        y_median = np.median(spec)
-        declared_upper = declared_yunits.upper()
+        # Note: Natively generated simulated absorbance spectra and pre-converted SDBS 
+        # absorbance spectra bypass the transmittance-to-absorbance conversion steps (Steps 3 & 4)
+        # and proceed directly to grid resampling and normalization (Steps 5 & 6).
+        if bypass_domain_conversion:
+            abs_spec = spec
+        else:
+            # 3. Determine spectrum type (Transmittance vs. Absorbance)
+            y_max = np.max(spec)
+            y_median = np.median(spec)
+            declared_upper = declared_yunits.upper()
 
-        is_transmittance = False
-        if any(t in declared_upper for t in ["TRANSMITTANCE", "%T", "PERCENT"]):
-            is_transmittance = True
-        elif any(a in declared_upper for a in ["ABSORBANCE", "ABS", "OD"]):
             is_transmittance = False
-        else:
-            if (y_max > 10.0 and y_median >= 40.0) or (
-                y_median < 40.0 and y_max >= 95.0
-            ):
+            if any(t in declared_upper for t in ["TRANSMITTANCE", "%T", "PERCENT"]):
                 is_transmittance = True
-            elif y_max <= 1.5 and y_median >= 0.6:
-                is_transmittance = True
+            elif any(a in declared_upper for a in ["ABSORBANCE", "ABS", "OD"]):
+                is_transmittance = False
+            else:
+                if (y_max > 10.0 and y_median >= 40.0) or (
+                    y_median < 40.0 and y_max >= 95.0
+                ):
+                    is_transmittance = True
+                elif y_max <= 1.5 and y_median >= 0.6:
+                    is_transmittance = True
 
-        # 4. Convert to absorbance (including removal of zero-transmittance dead zones)
-        if is_transmittance:
-            pos_mask = spec > 1e-5
-            wn = wn[pos_mask]
-            spec = spec[pos_mask]
-            if len(wn) < 10:
-                return None
+            # 4. Convert to absorbance (including removal of zero-transmittance dead zones)
+            if is_transmittance:
+                pos_mask = spec > 1e-5
+                wn = wn[pos_mask]
+                spec = spec[pos_mask]
+                if len(wn) < 10:
+                    return None
 
-            if np.max(spec) > 2.0:
-                spec = spec / 100.0
+                if np.max(spec) > 2.0:
+                    spec = spec / 100.0
 
-            spec_clipped = np.clip(spec, 1e-4, 1.0)
-            abs_spec = -np.log10(spec_clipped)
-        else:
-            abs_spec = spec - np.min(spec) if np.min(spec) < 0 else spec
+                spec_clipped = np.clip(spec, 1e-4, 1.0)
+                abs_spec = -np.log10(spec_clipped)
+            else:
+                abs_spec = spec - np.min(spec) if np.min(spec) < 0 else spec
 
         # Remove duplicates to ensure strictly monotonically increasing wavenumbers
         unique_wn, unique_idx = np.unique(wn, return_index=True)
@@ -84,10 +94,12 @@ def unified_preprocess_spectrum(
         right_mask = target_grid > orig_max
         resampled_abs[right_mask] = unique_abs[-1]
 
-        # 5.3 Points within the measured range: linear interpolation (out-of-bounds regions are truncated)
+        # 5.3 Points within the measured range: interpolation (out-of-bounds regions are truncated)
+        # Default 'linear' for experimental spectra to prevent overshooting on noisy baselines;
+        # higher-order (e.g., 'cubic') is also supported for smooth theoretical/simulated profiles.
         overlap_mask = (~left_mask) & (~right_mask)
         if np.any(overlap_mask):
-            interp_func = interp1d(unique_wn, unique_abs, kind="linear")
+            interp_func = interp1d(unique_wn, unique_abs, kind=interp_kind)
             resampled_abs[overlap_mask] = interp_func(target_grid[overlap_mask])
 
         # 6. Min-Max normalization to [0, 1]
