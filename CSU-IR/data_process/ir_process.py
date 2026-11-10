@@ -95,6 +95,8 @@ def unified_preprocess_spectrum(
         resampled_abs[right_mask] = unique_abs[-1]
 
         # 5.3 Points within the measured range: interpolate onto the uniform target grid
+        # Default 'linear' for experimental spectra to prevent overshooting on noisy baselines;
+        # higher-order (e.g., 'cubic') is also supported for smooth theoretical/simulated profiles.
         overlap_mask = (~left_mask) & (~right_mask)
         if np.any(overlap_mask):
             interp_func = interp1d(unique_wn, unique_abs, kind=interp_kind)
