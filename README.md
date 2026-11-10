@@ -7,10 +7,10 @@ This is the official code repository for our paper, **"Interpretable spectra-to-
 
 We introduce **CSU-IR**, a novel deep learning framework designed for high-precision unknown-compound identification by unifying infrared (IR) spectra and molecular structures. Key strengths of our work include:
 
-*   **Exceptional 100-Million-Scale Library Retrieval Performance**: Maintains high accuracy (Recall@1 of 63.11% and a Recall@10 of 90.74%) when retrieving against libraries containing 100 million compounds.
+*   **Exceptional 100-Million-Scale Library Retrieval Performance**: Maintains high accuracy (Recall@1 of 60.78% and a Recall@10 of 90.69%) when retrieving against libraries containing 100 million compounds.
 *   **Specialized for Psychoactive Substances Identification**: Purpose-built models and libraries for the accurate retrieval of Psychoactive Substances.
 *   **Multi-perspective Interpretability**: CSU-IR achieves accurate and trustworthy spectral retrieval by grounding its predictions in interpretable chemical property and specific spectral-structural correspondence.
-*   **Comprehensive Functional Groups Detection**: The model successfully detected 48 functional groups with an average recall@1 of 93.80%.
+*   **Comprehensive Functional Groups Detection**: The model successfully detected 48 functional groups with an average recall@1 of 93.72%.
 
 <img width="4575" height="3950" alt="Fig1_github" src="https://github.com/user-attachments/assets/b8e2f632-3a61-4840-aecb-c7bbe9200f06" />
 
@@ -85,7 +85,7 @@ The complete dataset with identical splits can be fully reproduced locally. Plea
 
 #### 2.2 EB_TF dataset Construction (Optional)
 
-The EB_TF dataset incorporates Thermo Fisher (TF) data into the existing EB dataset. The Thermo Fisher database used to build the EB_TF dataset is a commercial proprietary resource, which can be accessed through standard procurement procedures from the vendor. To ensure reproducibility and verifiability, the molecule identifiers and source labels can be downloaded from  **[Download Hub: Hugging Face Repository (Stage III- EXP / EB_TF Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20III-%20EXP/EB_TF)**. The preprocessing scripts of the Thermo Fisher data are given in [`CSU-IR/data_process/ir_process.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/data_process/ir_process.py), specifically utilizing the CSV-related processing functions.
+The EB_TF dataset incorporates Thermo Fisher (TF) data into the existing EB dataset. The Thermo Fisher database used to build the EB_TF dataset is a commercial proprietary resource, which can be accessed through standard procurement procedures from the vendor. To ensure reproducibility and verifiability, the molecule identifiers and source labels can be downloaded from  **[Download Hub: Hugging Face Repository (Stage III- EXP / EB_TF Folder)](https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage%20training%20data/Stage%20III-%20EXP/EB_TF)**. The preprocessing scripts of the Thermo Fisher data are given in [`CSU-IR/data_process/ir_process.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/data_process/ir_process.py).
 
 #### 2.3 Other Data & Checkpoints Preparation
 
