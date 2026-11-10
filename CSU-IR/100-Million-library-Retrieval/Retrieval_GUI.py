@@ -5,17 +5,14 @@ This script provides a Web service for retrieving the 100-Million-Scale library:
 3. Infrared spectroscopy plus molecular formula.
 
 Spectra (.csv or .jdx format in either absorbance or transmittance) are 
-automatically parsed and preprocessed without manual mode selection.
+automatically parsed and preprocessed via the unified physical pipeline.
 '''
 
 import os
 import sys
 import torch
-import numpy as np
 import pandas as pd
-import jcamp
 import gradio as gr
-from scipy.interpolate import CubicSpline
 
 os.environ["NO_PROXY"] = "localhost,127.0.0.1,::1"
 os.environ["no_proxy"] = "localhost,127.0.0.1,::1"
@@ -26,9 +23,8 @@ sys.path.insert(0, PROJECT_ROOT)
 EXAMPLE_DIR = os.path.join(PROJECT_ROOT, 'data', "example_library_and_ir_for_user_dinfined")
 
 from Retrieval_functions import (
-    load_MW_Formula,
-    get_final_query_metadata,
-    UnifiedCombinedLibrary,
+    process_ir,
+    Chunked100MLibraryManager,
     unified_retrieval_100M,
     calculate_calibrated_confidence
 )
@@ -37,140 +33,16 @@ from model.IR_encoder import IRModel
 from model.SMILES_encoder import SmilesModel
 from test_and_infer.test_and_infer_functions import ModelInference
 
-FEATURE_DIM = 1024
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
-# ==================== 1. Adaptive Spectral Preprocessing ====================
-def _resample_and_pad_spectrum(wavenumbers, intensities):
-    """
-    Standardizes spectral resolution to 3500 points covering 500-4000 cm^-1 using cubic spline interpolation.
-    """
-    x = np.array(wavenumbers, dtype=float)
-    y = np.array(intensities, dtype=float)
-    valid_mask = (~np.isnan(x)) & (~np.isnan(y)) & (y != 0)
-    x = x[valid_mask]
-    y = y[valid_mask]
-    if len(x) < 4:
-        return None
-
-    # Automatic micrometer to wavenumber conversion if needed
-    if np.nanmax(x) < 100.0:
-        x = 10000.0 / x
-
-    _, unique_indices = np.unique(x, return_index=True)
-    x = x[unique_indices]
-    y = y[unique_indices]
-    sort_idx = np.argsort(x)
-    x = x[sort_idx]
-    y = y[sort_idx]
-
-    min_x, max_x = x[0], x[-1]
-    start = max(min_x, 500.0)
-    end = min(max_x, 4000.0)
-    if start >= end:
-        return None
-
-    mask = (x >= start) & (x <= end)
-    x_crop = x[mask]
-    y_crop = y[mask]
-    if len(x_crop) < 4:
-        return None
-
-    start_int = int(np.ceil(start))
-    end_int = int(np.floor(end))
-    x_temp = np.arange(start_int, end_int + 1, 1.0)
-    x_temp = np.clip(x_temp, x_crop[0], x_crop[-1])
-    cs_crop = CubicSpline(x_crop, y_crop, extrapolate=True)
-    y_temp = cs_crop(x_temp)
-
-    x_full = np.arange(500, 4001, 1.0)
-    y_full = np.zeros_like(x_full)
-    idx_start = start_int - 500
-    idx_end = end_int - 500
-    y_full[idx_start:idx_end + 1] = y_temp
-    if idx_start > 0:
-        y_full[:idx_start] = y_temp[0]
-    if idx_end < 3500:
-        y_full[idx_end + 1:] = y_temp[-1]
-
-    x_target = np.linspace(500.0, 4000.0, 3500)
-    cs_full = CubicSpline(x_full, y_full, extrapolate=True)
-    return cs_full(x_target)
-
-
-def preprocess_universal_ir_spectrum(wavenumbers, intensities):
-    """
-    Intelligent adaptive preprocessor automatically supporting both CSV and JDX in transmittance or absorbance.
-    """
-    try:
-        raw_y = np.array(intensities, dtype=float)
-
-        # Scale percentage transmittance (0-100%) to (0-1.0)
-        if np.nanmax(raw_y) > 1.5:
-            raw_y = raw_y / 100.0
-
-        processed_y = _resample_and_pad_spectrum(wavenumbers, raw_y)
-        if processed_y is None:
-            return None
-
-        # Min-max normalization for preliminary baseline assessment
-        min_val = np.min(processed_y)
-        max_val = np.max(processed_y)
-        if max_val > min_val:
-            norm_spec = (processed_y - min_val) / (max_val - min_val)
-        else:
-            norm_spec = np.zeros_like(processed_y)
-
-        # Baseline heuristic: Transmittance median > 0.45; Absorbance median <= 0.45
-        spec_median = np.median(norm_spec)
-        if spec_median > 0.45:
-            spec_clipped = np.clip(norm_spec, 1e-4, 1.0)
-            abs_spec = -np.log10(spec_clipped)
-            min_val_abs = np.min(abs_spec)
-            max_val_abs = np.max(abs_spec)
-            if max_val_abs > min_val_abs:
-                final_spec = (abs_spec - min_val_abs) / (max_val_abs - min_val_abs)
-            else:
-                final_spec = np.zeros_like(abs_spec)
-        else:
-            final_spec = norm_spec
-
-        if np.any(np.isnan(final_spec)):
-            return None
-        return final_spec
-    except Exception:
-        return None
-
-
-def process_ir(ir_file_path, model_infer_instance):
-    """Parses IR spectrum file and generates embedding vector."""
-    if ir_file_path.lower().endswith('.csv'):
-        df = pd.read_csv(ir_file_path, header=None)
-        wavenumbers, intensities = df.iloc[:, 0].values, df.iloc[:, 1].values
-        ir_data = preprocess_universal_ir_spectrum(wavenumbers, intensities)
-    elif ir_file_path.lower().endswith('.jdx'):
-        data = jcamp.jcamp_readfile(ir_file_path)
-        wavenumbers, intensities = np.array(data['x'], dtype=float), np.array(data['y'], dtype=float)
-        ir_data = preprocess_universal_ir_spectrum(wavenumbers, intensities)
-    else:
-        raise ValueError("Unsupported file format. Please upload a .jdx or .csv file.")
-
-    if ir_data is None:
-        raise ValueError("Failed to process spectrum. Please ensure sufficient valid data points.")
-
-    ir_spectra_tensor = torch.tensor(ir_data, dtype=torch.float32).unsqueeze(0).to(device)
-    with torch.no_grad():
-        ir_feature = model_infer_instance.ir_encode(ir_spectra_tensor)
-    return ir_feature
-
-
-# ==================== 2. Retrieval Engine ====================
+# ==================== 1. Retrieval Engine Interface ====================
 class IR_Retrieval_Engine_100M:
     def __init__(self):
         self.tokenizer_path = os.path.join(PROJECT_ROOT, 'model', "tokenizer-smiles-roberta-1e_new")
-        self.pretrain_smiles_path = os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_III_EXP", "MD_DFT_EXP", "best_smiles_model.pth")
-        self.pretrain_ir_path = os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_III_EXP", "MD_DFT_EXP", "best_ir_model.pth")
+        self.pretrain_smiles_path = os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_III_EXP", "MD_DFT_EXP", "best_smiles_model_EB_TF.pth")
+        self.pretrain_ir_path = os.path.join(PROJECT_ROOT, "check_points", "Multi-stage_training_Stage_III_EXP", "MD_DFT_EXP", "best_ir_model_EB_TF.pth")
+        self.db_dir = os.path.join(PROJECT_ROOT, 'data', '100-Million-library-Retrieval')
 
         self.ir_model = IRModel().to(device)
         self.sm_model = SmilesModel(
@@ -188,72 +60,58 @@ class IR_Retrieval_Engine_100M:
             pretrain_model_path_ir=self.pretrain_ir_path,
             device=device
         )
+        self.lib_manager = Chunked100MLibraryManager(self.db_dir, num_chunks=54)
+        self.total_db_size = self.lib_manager.total_size
 
-        self.lib_configs = []
-        parts = ["I", "II", "III"]
-        base_dir = os.path.join(PROJECT_ROOT, 'data', '100-Million-library-Retrieval')
-
-        for p_name in parts:
-            part_folder = os.path.join(base_dir, f'Part_{p_name}')
-            for sub_i in range(1, 19):
-                config = {
-                    "name": f"Part_{p_name}-Sub{sub_i}",
-                    "dat": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_sub{sub_i}.dat'),
-                    "formulas": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_formulas_part_{p_name}_sub{sub_i}.txt'),
-                    "smiles": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_smiles_part_{p_name}_sub{sub_i}.txt'),
-                    "mw": os.path.join(part_folder, f'global_pool_features_100M_1024dim_fp16_part_{p_name}_mw_part_{p_name}_sub{sub_i}.txt')
-                }
-                self.lib_configs.append(config)
-
-        self.lib_manager = UnifiedCombinedLibrary(self.lib_configs)
-
-    def search(self, ir_file, mw, formula, top_k, search_range):
+    def search(self, ir_file, mw, formula, top_k, full_lib_cb, dynamic_scale):
         try:
             if ir_file is None:
                 return "Please upload an IR spectrum file.", None, gr.update(visible=False)
 
+            top_k = int(top_k)
             ir_feature = process_ir(ir_file.name, self.model_infer)
 
-            limit_map = {"1w": 10000, "10w": 100000, "100w": 1000000, "1000w": 10000000, "Full Library": None}
-            search_limit = limit_map.get(search_range, None)
+            has_mw = bool(mw and str(mw).strip())
+            has_form = bool(formula and str(formula).strip())
 
-            if (mw and mw.strip()) or (formula and formula.strip()):
+            if has_mw or has_form or full_lib_cb:
                 search_limit = None
+            else:
+                search_limit = int(dynamic_scale)
 
             results = unified_retrieval_100M(
-                self.lib_manager,
-                ir_feature=ir_feature,
-                mw=mw if mw else None,
-                formula=formula if formula else None,
+                q_ir=ir_feature,
+                lib_manager=self.lib_manager,
+                mw=mw,
+                formula=formula,
                 top_k=top_k,
-                search_range=search_limit
+                search_range=search_limit,
+                mw_tolerance=0.5
             )
 
             if not results:
-                return "No candidates found.", None, gr.update(visible=False)
+                return "No candidates found matching the criteria.", None, gr.update(visible=False)
 
-            df = pd.DataFrame(results)
-            top1_score = float(df.iloc[0]['similarity'])
+            df_res = pd.DataFrame(results)
+            top1_score = float(df_res.iloc[0]['similarity'])
 
-            # Compute calibrated confidence using NIST baseline parameters (scale=0.2187, bias=-0.3748)
             top1_calibrated_conf = calculate_calibrated_confidence(
                 top1_score,
                 self.sm_model,
-                scale=0.2187,
-                bias=-0.3748
+                scale=0.2940,
+                bias=-0.8541
             )
 
-            df['Calibrated Confidence'] = df['similarity'].map(
-                lambda s: f"{calculate_calibrated_confidence(float(s), self.sm_model, scale=0.2187, bias=-0.3748) * 100:.2f}%"
+            df_res['Calibrated Confidence'] = df_res['similarity'].map(
+                lambda s: f"{calculate_calibrated_confidence(float(s), self.sm_model, scale=0.2940, bias=-0.8541) * 100:.2f}%"
             )
 
-            # Confidence Statement and Enhanced Domain Guidance Note
             statement_text = (
                 f'The <span style="font-weight: bold;">Top-1 (Recall@1)</span> candidate of this retrieval has a '
                 f'<span style="color: #008c7a; font-weight: bold; font-size: 1.25em;">{top1_calibrated_conf * 100:.2f}%</span> '
                 f'probability of being the correct target molecule.'
             )
-            
+
             note_text = (
                 '<b>Note:</b> In an ultra-large database (100-million scale), substantial expansion of the '
                 'candidate space may introduce statistical calibration drift. When the exact query molecule '
@@ -274,11 +132,12 @@ class IR_Retrieval_Engine_100M:
                 f'</div>'
             )
 
-            df = df[['rank', 'similarity', 'Calibrated Confidence', 'formula', 'smiles']]
-            df['similarity'] = df['similarity'].map(lambda x: f"{float(x):.4f}")
-            df.columns = ['Rank', 'Cosine Similarity', 'Calibrated Confidence', 'Formula', 'SMILES']
+            df_res = df_res[['rank', 'similarity', 'Calibrated Confidence', 'formula', 'mw', 'smiles']]
+            df_res['similarity'] = df_res['similarity'].map(lambda x: f"{float(x):.4f}")
+            df_res['mw'] = df_res['mw'].map(lambda x: f"{float(x):.4f}")
+            df_res.columns = ['Rank', 'Cosine Similarity', 'Calibrated Confidence', 'Formula', 'Mol Weight', 'SMILES']
 
-            return "Search completed!", df, gr.update(value=conf_summary, visible=True)
+            return "Search completed!", df_res, gr.update(value=conf_summary, visible=True)
 
         except Exception as e:
             return f"Error: {str(e)}", None, gr.update(visible=False)
@@ -287,14 +146,7 @@ class IR_Retrieval_Engine_100M:
 engine = IR_Retrieval_Engine_100M()
 
 
-def handle_range_visibility(mw, formula):
-    """Automatically locks search range to Full Library when molecular weight or formula is provided."""
-    if (mw and mw.strip()) or (formula and formula.strip()):
-        return gr.update(visible=False, value="Full Library")
-    return gr.update(visible=True)
-
-
-# ==================== 3. Gradio User Interface ====================
+# ==================== 2. Gradio User Interface ====================
 CSS = """
 * { font-family: 'Times New Roman', Times, serif !important; }
 #header h1 { color: #00bfa5; text-align: center; }
@@ -310,9 +162,9 @@ with gr.Blocks(title="100-Million-Scale IR Retrieval System", css=CSS) as demo:
 
     gr.Markdown("""
     ### 📝 Notes:
-    - **Adaptive Spectral Preprocessing**: Both **.jdx** and **.csv** files in either **absorbance** or **transmittance** mode are automatically parsed.
+    - **Adaptive Spectral Preprocessing**: Both **.jdx** and **.csv** files in either **absorbance** or **transmittance** mode are automatically parsed via unified physics-based interpolation.
     - **Retrieval Priority**: For optimal performance, the search follows: Formula-based filtering > Exact Mass filtering > IR-only search.
-    - **Search Time**: Searching across the full 100M library in IR-only mode takes approximately **8m 30s**. Providing molecular weight or chemical formula enables rapid screening (usually within 30 seconds).
+    - **Search Time**: Searching across the full 100M library in IR-only mode takes approximately 3 min 30 s (tested on our local setup). Providing molecular weight or chemical formula enables rapid screening (usually within seconds).
     - **Molecular Weight Specification**: Exact masses in the library are calculated via RDKit's `rdMolDescriptors.CalcExactMolWt(mol)`, which determines the monoisotopic mass using the most abundant isotope by default (e.g., <sup>79</sup>Br instead of <sup>81</sup>Br). Users should follow this convention for isotopic compounds. In practice, enter the nearest integer within a ±0.5 tolerance of the calculated mass (e.g., input **169** for a mass of **169.1103**).
     """)
 
@@ -322,12 +174,13 @@ with gr.Blocks(title="100-Million-Scale IR Retrieval System", css=CSS) as demo:
 
             gr.Markdown(
                 "**🧪 Example Spectral Data:**\n"
-                "- `4-(Methylthio)phenol`: Mass Input`140`, Formula Input`C7H8OS`"
+                "- `5-Cyclo-5alpha-androstan-6beta-ol, 17-ethylenedioxy-3alpha, p-nitrobenzoate` (SMILES: `CC12CCC3C(CC(OC(=O)c4ccc([N+](=O)[O-])cc4)C45CC4CCC35C)C1CCC21OCCO1`)\n"
+                "- Formula: `C28H35NO6` | **Recommended Mass Input: `481`**"
             )
 
             gr.Examples(
                 examples=[
-                    [os.path.join(EXAMPLE_DIR, '4-(Methylthio)phenol.CSV')]
+                    [os.path.join(EXAMPLE_DIR, "5-Cyclo-5alpha-androstan-6beta-ol_17-ethylenedioxy-3alpha_p-nitrobenzoate.jdx")]
                 ],
                 inputs=[ir_input],
                 label="Step 1: Load Example Spectrum",
@@ -336,21 +189,54 @@ with gr.Blocks(title="100-Million-Scale IR Retrieval System", css=CSS) as demo:
 
             mw_input = gr.Textbox(
                 label="Mass (Optional)", 
-                placeholder="e.g. 140"
+                placeholder="e.g. 481"
             )
             formula_input = gr.Textbox(
                 label="Formula (Optional)", 
-                placeholder="e.g. C7H8OS"
+                placeholder="e.g. C28H35NO6"
             )
 
-            search_range = gr.Dropdown(
-                choices=["1w", "10w", "100w", "1000w", "Full Library"],
-                value="Full Library",
-                label="Search Range (Only for IR-only search)"
-            )
+            with gr.Group(visible=True) as scale_group:
+                gr.Markdown("#### 🔍 Search Scale Settings (IR-only mode)")
+                full_lib_checkbox = gr.Checkbox(
+                    label="Search Full 100M Library",
+                    value=True,
+                    info="When checked, searches the entire database. Uncheck to dynamically configure a smaller scale."
+                )
+                dynamic_scale_slider = gr.Slider(
+                    minimum=10000,
+                    maximum=engine.total_db_size if engine.total_db_size > 0 else 100000000,
+                    value=1000000,
+                    step=10000,
+                    label="Custom Dynamic Library Scale (Samples)",
+                    visible=False,
+                    info="Slide to freely adjust the number of search candidates."
+                )
 
-            mw_input.change(handle_range_visibility, inputs=[mw_input, formula_input], outputs=[search_range])
-            formula_input.change(handle_range_visibility, inputs=[mw_input, formula_input], outputs=[search_range])
+            def toggle_scale_controls(is_full, mw_val, form_val):
+                has_filters = bool((mw_val and str(mw_val).strip()) or (form_val and str(form_val).strip()))
+                if has_filters:
+                    return gr.update(visible=False), gr.update(value=True), gr.update(visible=False)
+                if is_full:
+                    return gr.update(visible=True), gr.update(value=True), gr.update(visible=False)
+                else:
+                    return gr.update(visible=True), gr.update(value=False), gr.update(visible=True)
+
+            full_lib_checkbox.change(
+                fn=toggle_scale_controls,
+                inputs=[full_lib_checkbox, mw_input, formula_input],
+                outputs=[scale_group, full_lib_checkbox, dynamic_scale_slider]
+            )
+            mw_input.change(
+                fn=toggle_scale_controls,
+                inputs=[full_lib_checkbox, mw_input, formula_input],
+                outputs=[scale_group, full_lib_checkbox, dynamic_scale_slider]
+            )
+            formula_input.change(
+                fn=toggle_scale_controls,
+                inputs=[full_lib_checkbox, mw_input, formula_input],
+                outputs=[scale_group, full_lib_checkbox, dynamic_scale_slider]
+            )
 
             top_k_slider = gr.Slider(minimum=10, maximum=100, value=50, step=10, label="Top-K Candidates")
             search_btn = gr.Button("🚀 Start Retrieval", variant="primary")
@@ -362,7 +248,7 @@ with gr.Blocks(title="100-Million-Scale IR Retrieval System", css=CSS) as demo:
 
     search_btn.click(
         fn=engine.search,
-        inputs=[ir_input, mw_input, formula_input, top_k_slider, search_range],
+        inputs=[ir_input, mw_input, formula_input, top_k_slider, full_lib_checkbox, dynamic_scale_slider],
         outputs=[status_output, result_table, conf_display]
     )
 
