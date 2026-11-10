@@ -51,13 +51,15 @@ def extract_ps_data(splits=None):
         out_pt_file = output_dir / f"{split}_ir_ps.pt"
 
         # Check if source files exist
-        if not (
-            ps_label_file.exists()
-            and sample_id_file.exists()
-            and smiles_file.exists()
-            and pt_file.exists()
-        ):
-            print(f"Warning: Required files for [{split}] split not found. Skipping...")
+        if not ps_label_file.exists():
+            print(f"❌ Error: [{split}] PS label file not found: {ps_label_file}")
+            print(
+                "👉 Please download the required PS label files from HuggingFace:\n"
+                "   https://huggingface.co/Hsqcsu/CSU-IR/tree/main/Multi-stage training data/Stage III- EXP/EB"
+            )
+            continue
+        if not (sample_id_file.exists() and smiles_file.exists() and pt_file.exists()):
+            print(f"Warning: Required data files for [{split}] split not found. Skipping...")
             continue
 
         print(f"Loading {split} data files...")
