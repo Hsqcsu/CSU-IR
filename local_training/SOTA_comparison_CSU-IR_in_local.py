@@ -98,6 +98,10 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
     dir_qm9s_ir_raman = os.path.join(ckpt_root, "QM9S_ir_raman")
     dir_sdbs_chonf = os.path.join(ckpt_root, "SDBS_CHONF_ir_raman_finetuning")
 
+    # Output directories when no pre-trained weights are detected (training from scratch)
+    dir_eb_chonf_scratch = os.path.join(ckpt_root, "EB_CHONF_from_scratch")
+    dir_sdbs_chonf_scratch = os.path.join(ckpt_root, "SDBS_CHONF_ir_raman_from_scratch")
+
     def check_weights(folder):
         smiles_p = os.path.join(folder, "best_smiles_model.pth")
         ir_p = os.path.join(folder, "best_ir_model.pth")
@@ -119,12 +123,14 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
 
     # Task 2: EB_CHONF Fine-tuning (Inherits ONLY from QM9S_ir_only)
     elif task in ["eb_chonf_finetuning", "eb_chonf", "task2"]:
-        target_output_dir = dir_eb_chonf
         s_ckpt, i_ckpt = check_weights(dir_qm9s_ir)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
+            target_output_dir = dir_eb_chonf
             print(f"--> [Task 2] Found QM9S_ir_only pre-trained weights! Loading from: {dir_qm9s_ir}")
         else:
+            # Switch to scratch directory when pre-trained weights are not found
+            target_output_dir = dir_eb_chonf_scratch
             print(f"--> [Task 2] No QM9S_ir_only weights found. Fine-tuning from scratch.")
         print(f"--> Output directory: {target_output_dir}")
 
@@ -136,12 +142,14 @@ def resolve_sota_checkpoints_and_paths(config, project_root):
 
     # Task 4: SDBS_CHONF IR+Raman Fine-tuning (Inherits ONLY from QM9S_ir_raman)
     elif task in ["sdbs_chonf_ir_raman_finetuning", "sdbs_chonf", "task4"]:
-        target_output_dir = dir_sdbs_chonf
         s_ckpt, i_ckpt = check_weights(dir_qm9s_ir_raman)
         if s_ckpt and i_ckpt:
             load_smiles_ckpt, load_ir_ckpt = s_ckpt, i_ckpt
+            target_output_dir = dir_sdbs_chonf
             print(f"--> [Task 4] Found QM9S_ir_raman pre-trained weights! Loading from: {dir_qm9s_ir_raman}")
         else:
+            # Switch to scratch directory when pre-trained weights are not found
+            target_output_dir = dir_sdbs_chonf_scratch
             print(f"--> [Task 4] No QM9S_ir_raman weights found. Fine-tuning from scratch.")
         print(f"--> Output directory: {target_output_dir}")
 
