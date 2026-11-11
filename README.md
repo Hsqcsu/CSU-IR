@@ -137,6 +137,9 @@ Scripts for testing and inference are available in the respective project folder
 
 - **CSU-IR Retrieval**: [`CSU-IR/test_and_infer/`](https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/test_and_infer)
 
+> **✨ Use custom Libraries!**  
+> To perform retrieval against your own custom library, you can make it in our web server.
+
 #### 4.1 Reproducing Headline Results
 
 we provide a unified evaluation script ( [`CSU-IR/headline_results_evaluations/run_headline_evaluations.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/headline_results_evaluations/run_headline_evaluations.py)) to reproduce all headline metrics and downstream analyses reported in our manuscript directly from pre-trained checkpoints.
@@ -149,8 +152,6 @@ cd CSU-IR/CSU-IR/headline_results_evaluations
 python run_headline_evaluations.py --task retrieval_100m --gpu_ids 0
 ```
 
-> **✨ Use custom Libraries!**  
-> To perform retrieval against your own custom library, you can make it in our web server.
 ---
 
 ## 🌐 Web Service
