@@ -12,6 +12,7 @@ import os
 from rdkit import Chem
 from rdkit.Chem import AllChem, DataStructs
 import torch
+import sys
 
 # Project path configuration
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
