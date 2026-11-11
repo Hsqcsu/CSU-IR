@@ -191,7 +191,7 @@ A unified evaluation script is provided to reproduce all headline metrics and do
    cd CSU-IR/CSU-IR/headline_results_evaluations
    python run_headline_evaluations.py --task retrieval_100m --gpu_ids 0
 
-For a comprehensive evaluation walkthrough, please consult ``REPRODUCE.md`` in the repository.
+For a comprehensive evaluation walkthrough, please consult ``REPRODUCE.md <https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/headline_results_evaluations/REPRODUCE.md>`` in the repository.
 
 Step 4: Local 100-Million-library-Retrieval
 ------------------------------------------
@@ -199,7 +199,7 @@ Step 4: Local 100-Million-library-Retrieval
 For high-throughput 100-Million-Scale retrieval, CSU-IR provides an intuitive local GUI:
 
 1. **Download Library**: Download the processed 100-million library from `Hugging Face Dataset Hub <https://huggingface.co/datasets/Hsqcsu/CSU-IR_100_Million_library/tree/main/100_Million_library>`_.
-2. **Organize Directory**: Place the downloaded dataset files inside ``data/100-Million-library-Retrieval/``.
+2. **Organize Directory**: Place the downloaded dataset files inside ``data/100-Million-library-Retrieval/ <https://github.com/Hsqcsu/CSU-IR/tree/main/CSU-IR/data/100-Million-library-Retrieval>``.
 3. **Launch Retrieval GUI**:
 
 .. code-block:: bash
