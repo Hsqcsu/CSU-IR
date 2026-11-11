@@ -58,7 +58,7 @@ Training Notebooks
           :alt: Open In Colab
 
 .. note::
-   For full multi-stage training, please refer to :ref:`Step 3: Full Local Setup and Training <step-3-local-setup>` and download the complete datasets from our `Hugging Face Repository <https://huggingface.co/Hsqcsu/CSU-IR/tree/main>`_.
+   For full multi-stage training, please refer to : "Step 3: Full Local Setup and Training <step-3-local-setup>" and download the complete datasets from our `Hugging Face Repository <https://huggingface.co/Hsqcsu/CSU-IR/tree/main>`_.
 
 .. _step-3-local-setup:
 
