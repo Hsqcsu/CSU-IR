@@ -889,7 +889,6 @@ def run_ps(args):
         if not lib_smiles_norm:
             return None
             
-        print(f"--> Library Size (valid): {len(lib_smiles_norm)}")
 
         # Encode Library SMILES Features
         lib_feats_list = []
