@@ -62,12 +62,14 @@ def run_verification():
         print(" PyTorch DDP Gradient Synchronization & Multi-GPU Consistency Verification Protocol")
         print(f" Target: DualEncoder (SMILES Encoder + IR Encoder) | Active GPUs: {world_size}")
         print("=" * 85)
+    
+    tokenizer_dir = os.path.join(PROJECT_ROOT, "model", "tokenizer-smiles-roberta-1e_new")
 
     # 1. Instantiate sub-encoders and wrapped DualEncoder
     ir_model = IRModel().to(device)
     smiles_model = SmilesModel(
         roberta_model_path=None,
-        roberta_tokenizer_path="tokenizer-smiles-roberta-1e_new",
+        roberta_tokenizer_path=tokenizer_dir,
         smiles_maxlen=300,
         max_position_embeddings=505,
         vocab_size=181,
