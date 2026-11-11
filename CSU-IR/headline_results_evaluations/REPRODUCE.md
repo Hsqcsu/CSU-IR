@@ -17,8 +17,7 @@ This document provides a comprehensive guide and command-line entry points to re
 
 ## 2 Execution Commands
 
-Prior to execution, please download the required resources from the following Hugging Face repositories and place them in the directories specified by the code(run_headline_evaluations.py)'s default paths. It is particularly important to note that  the entire data of 100 million library needs to be downloaded to the folder named (data/100-Million-library-Retrieval). The execution time for all commands, including the retrieval from the 100-Million-Scale library, will be completed within a few minutes.
-
+Prior to execution, please download the required resources from the following Hugging Face repositories and place them in the directories specified by the code(run_headline_evaluations.py)'s default paths. It is particularly important to note that  the entire data of 100 million library needs to be downloaded to the folder named (data/100-Million-library-Retrieval). All commands execute within seconds, except for the 100-Million-Scale Compound Retrieval (which take a few minutes).
 
 ### Task 1: 100-Million-Scale Compound Retrieval
 
