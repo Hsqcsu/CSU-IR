@@ -28,14 +28,14 @@ PRETRAIN_SMILES_MODEL_PATH = os.path.join(
     "check_points",
     "Multi-stage_training_Stage_III_EXP",
     "MD_DFT_EXP",
-    "best_smiles_model.pth",
+    "best_smiles_model_EB_TF.pth",
 )
 PRETRAIN_IR_MODEL_PATH = os.path.join(
     PROJECT_ROOT,
     "check_points",
     "Multi-stage_training_Stage_III_EXP",
     "MD_DFT_EXP",
-    "best_ir_model.pth",
+    "best_ir_model_EB_TF.pth",
 )
 LIBRARY_FILE_PATH = os.path.join(
     PROJECT_ROOT,
@@ -119,7 +119,15 @@ def retrieval(ir_spectra_file, spectrum_type, your_library):
         wavenumbers = df.iloc[:, 0].values
         intensities = df.iloc[:, 1].values
     elif file_path.lower().endswith(".jdx"):
-        data = jcamp.jcamp_readfile(file_path)
+        if hasattr(jcamp, "readfile"):
+            data = jcamp.readfile(file_path)
+        elif hasattr(jcamp, "JCAMP_reader"):
+            data = jcamp.JCAMP_reader(file_path)
+        elif hasattr(jcamp, "jcamp_reader"):
+            data = jcamp.jcamp_reader(file_path)
+        else:
+            raise AttributeError("No available reading function was found in the jcamp module.")
+
         wavenumbers = np.array(data["x"], dtype=float)
         intensities = np.array(data["y"], dtype=float)
         # Attempt to retrieve y-units metadata from JDX header; fallback to spectrum_type
