@@ -8,10 +8,10 @@ This document provides a comprehensive guide and command-line entry points to re
 
 | Task Name | Paper Reference | Checkpoint Availability | Data Availability & Access |
 | :--- | :---: | :---: | :--- |
-| **100M library Retrieval** | Fig. 4 | **Public**, https://huggingface.co/Hsqcsu/CSU-IR  | **Public**. The EB test set needs to undergo the "2.1 EB dataset Construction" process as described in the readme file to obtain the corresponding data. The 100 million library are stored at [CSU-IR_100_Million_library](https://huggingface.co/datasets/Hsqcsu/CSU-IR_100_Million_library/tree/main/100_Million_library)|
-| **Functional groups detection** | Fig. 6a | **Public**, https://huggingface.co/Hsqcsu/CSU-IR | **Public**. The EB test set needs to undergo the "2.1 EB dataset Construction" process as described in the readme file to obtain the corresponding data. |
-| **OOD performance** | Fig. 6b | **Public**, https://huggingface.co/Hsqcsu/CSU-IR | *User-prepared* (Requires Thermo data, which can be accessed through standard procurement procedures. The specific OOD data needs to be processed firstly to extract the TF data from the test set in EB_TF. Then, using OOD building script (CSU-IR/OOD_data_building/build_OOD_data.py) to obtain the corresponding OOD data.) |
-| **NPS retrieval** | Fig. 6c | **Public**, https://huggingface.co/Hsqcsu/CSU-IR | *Partially restricted* (Existing library is public in https://huggingface.co/Hsqcsu/CSU-IR; derived sets can be accessed upon reasonable request) |
+| **100M library Retrieval** | Fig. 4 | **Public**, [huggingface](https://huggingface.co/Hsqcsu/CSU-IR)  | **Public**. The EB test set needs to undergo the "2.1 EB dataset Construction" process as described in the readme file to obtain the corresponding data. The 100 million library are stored at [CSU-IR_100_Million_library](https://huggingface.co/datasets/Hsqcsu/CSU-IR_100_Million_library/tree/main/100_Million_library)|
+| **Functional groups detection** | Fig. 6a | **Public**, [huggingface](https://huggingface.co/Hsqcsu/CSU-IR)  | **Public**. The EB test set needs to undergo the "2.1 EB dataset Construction" process as described in the readme file to obtain the corresponding data. |
+| **OOD performance** | Fig. 6b | **Public**, [huggingface](https://huggingface.co/Hsqcsu/CSU-IR)  | *User-prepared* (Requires Thermo data, which can be accessed through standard procurement procedures. The specific OOD data needs to be processed firstly to extract the TF data from the test set in EB_TF. Then, using OOD building script (CSU-IR/OOD_data_building/build_OOD_data.py) to obtain the corresponding OOD data.) |
+| **NPS retrieval** | Fig. 6c | **Public**, [huggingface](https://huggingface.co/Hsqcsu/CSU-IR)  | *Partially restricted* (Existing library is public in https://huggingface.co/Hsqcsu/CSU-IR; derived sets can be accessed upon reasonable request) |
 
 ---
 
