@@ -13,6 +13,8 @@ from rdkit import Chem
 from rdkit.Chem import AllChem, DataStructs
 import torch
 import sys
+from rdkit import RDLogger
+RDLogger.DisableLog('rdApp.warning')
 
 # Project path configuration
 PROJECT_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -156,12 +158,6 @@ def extract_gradient_and_id_data(target_smiles, target_tensor, data1_fps):
             far_smiles.append(smi)
             far_tensors.append(target_tensor[idx])
 
-    print(f"\nScan completed (Total scanned: {total_scanned}, Valid molecules: {valid_count}):")
-    print(f"  1. High-Sim / ID   (Sim >= 0.7)      : {len(id_smiles)} samples")
-    print(f"  2. Near-OOD        (0.5 <= Sim < 0.7): {len(near_smiles)} samples")
-    print(f"  3. Moderate-OOD    (0.3 <= Sim < 0.5): {len(mod_smiles)} samples")
-    print(f"  4. Far-OOD         (Sim < 0.3)       : {len(far_smiles)} samples")
-
     results = {
         "id_data": (
             id_smiles,
@@ -206,7 +202,7 @@ def save_results(results, output_dir):
                     f.write(smi + "\n")
 
             torch.save(tensor_data, pt_path)
-            print(f"  Saved {key}: {len(smiles)} samples -> {txt_path}")
+            print(f"  Saved {key} -> {txt_path}")
         else:
             print(f"  Note: No matching data found for {key}, skipping save.")
 
