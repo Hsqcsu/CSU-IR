@@ -377,12 +377,18 @@ def main():
     pretrained_ir = config['paths'].get('pretrained_ir_model')
     pretrained_smiles = config['paths'].get('pretrained_smiles_model')
 
+    loaded_any = False
     if pretrained_ir and os.path.exists(pretrained_ir):
         IR_model.load_state_dict(torch.load(pretrained_ir, map_location=device))
         print(f"✅ Loaded pre-trained IR model: {pretrained_ir}")
+        loaded_any = True
+
     if pretrained_smiles and os.path.exists(pretrained_smiles):
         Smiles_Model.load_state_dict(torch.load(pretrained_smiles, map_location=device))
         print(f"✅ Loaded pre-trained SMILES model: {pretrained_smiles}")
+        loaded_any = True
+    if not loaded_any:
+        print("ℹ️ Training from scratch")
 
     IR_model.to(device)
     Smiles_Model.to(device)
