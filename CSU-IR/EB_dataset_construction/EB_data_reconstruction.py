@@ -18,6 +18,7 @@ from requests.adapters import HTTPAdapter
 from scipy.interpolate import interp1d
 import torch
 from tqdm import tqdm
+import re
 from urllib3.exceptions import InsecureRequestWarning
 
 # ================= 1. Network & Connection Pool Configuration =================
@@ -267,6 +268,8 @@ def ensure_all_jdx_downloaded(split_name, nist_sample_ids):
 
 
 # ================= 5. Stage 2: Offline Batch Processing =================
+NUM_PATTERN = re.compile(r"[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?")
+
 def parse_jdx_spectra(file_path):
     x_raw, y_raw = [], []
     xunits = "WAVENUMBERS"
@@ -275,11 +278,12 @@ def parse_jdx_spectra(file_path):
     yfactor = 1.0
     deltax = None
     in_xydata = False
+    xydata_format = "X++(Y..Y)"
 
     try:
         with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             for line in f:
-                line = line.strip()
+                line = line.split("$$")[0].strip()
                 if not line:
                     continue
                 if line.startswith("##XUNITS="):
@@ -294,6 +298,11 @@ def parse_jdx_spectra(file_path):
                     deltax = float(line.split("=", 1)[1].strip())
                 elif line.startswith("##XYDATA="):
                     in_xydata = True
+                    xy_type_str = line.split("=", 1)[1].strip().upper()
+                    if "(XY..XY)" in xy_type_str:
+                        xydata_format = "XY..XY"
+                    else:
+                        xydata_format = "X++(Y..Y)"
                     continue
                 elif line.startswith("##END=") or (
                     line.startswith("##") and in_xydata
@@ -301,23 +310,29 @@ def parse_jdx_spectra(file_path):
                     in_xydata = False
 
                 if in_xydata:
-                    parts = line.split()
-                    if not parts:
+                    tokens = NUM_PATTERN.findall(line)
+                    if not tokens:
                         continue
                     try:
-                        line_x = float(parts[0]) * xfactor
-                        for k, val_str in enumerate(parts[1:]):
-                            line_y = float(val_str) * yfactor
-                            if deltax is not None:
-                                actual_x = line_x + k * deltax * xfactor
-                            else:
-                                actual_x = line_x
-                            x_raw.append(actual_x)
-                            y_raw.append(line_y)
+                        vals = [float(t) for t in tokens]
+                        if xydata_format == "XY..XY":
+                            for idx in range(0, len(vals) - 1, 2):
+                                x_raw.append(vals[idx] * xfactor)
+                                y_raw.append(vals[idx + 1] * yfactor)
+                        else:
+                            line_x = vals[0] * xfactor
+                            for k, val in enumerate(vals[1:]):
+                                line_y = val * yfactor
+                                if deltax is not None:
+                                    actual_x = line_x + k * deltax * xfactor
+                                else:
+                                    actual_x = line_x
+                                x_raw.append(actual_x)
+                                y_raw.append(line_y)
                     except ValueError:
                         continue
     except Exception as e:
-        print(f"Failed to parse JDX file: {e}")
+        print(f"Failed to parse JDX file '{file_path}': {e}")
 
     return x_raw, y_raw, xunits, yunits
 
@@ -364,7 +379,6 @@ def load_annotated_labels(split_name):
             line_str = line.strip()
             if not line_str:
                 continue
-            # 支持以制表符 \t 分隔或空格分隔两列
             if "\t" in line_str:
                 parts = line_str.split("\t", 1)
             else:
@@ -373,9 +387,7 @@ def load_annotated_labels(split_name):
             label = parts[0].strip()
             file_name = parts[1].strip() if len(parts) > 1 else "None"
 
-            # 对第二列进行提取处理：若为 NIST 则剥离后缀保留基础 sample_id
             if label.upper() == "NIST" and file_name.lower() != "none":
-                # 去除可能的 .jdx / .JDX 后缀以及多余的路径前缀
                 base_name = os.path.basename(file_name)
                 sid = os.path.splitext(base_name)[0]
             else:
@@ -436,7 +448,6 @@ def reconstruct_subset(split_name):
                     torch.tensor(curr_ir, dtype=torch.float32)
                 )
 
-    # ③ 将列表堆叠为一整个二维 torch.Tensor: shape [N, 3500]
     reconstructed_tensor = torch.stack(reconstructed_tensors, dim=0)
 
     # Define output file paths
