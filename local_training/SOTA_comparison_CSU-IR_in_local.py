@@ -365,15 +365,12 @@ def main():
 
     # Load datasets (supports optional Raman for multi-modal concat)
     print("Loading datasets...")
-    if is_main_process():
-        print("Loading datasets...")
 
     task = config.get("training_params", {}).get("task", "").strip().lower()
     if "ir_only" in task or task == "task1":
         train_raman = None
         val_raman = None
-        if is_main_process():
-            print("🔒 [Task Guard] Task is set to 'IR_ONLY'. Ignoring Raman spectra even if paths exist.")
+        print("🔒 [Task Guard] Task is set to 'IR_ONLY'. Ignoring Raman spectra even if paths exist.")
     else:
         train_raman = config['paths'].get('train_raman')
         val_raman = config['paths'].get('val_raman')
