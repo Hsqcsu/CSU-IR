@@ -6,7 +6,7 @@
 To ensure one-to-one fidelity between IR and its chemical structure:
 
 1. **SMILES label quering**:
-   - Raw substance names or CAS numbers from raw IR files were queried via PubChem and IUPAC search tools to obtain SMILES labels.
+   - Raw substance names or CAS numbers from raw IR files were queried via PubChem and OPSIN to obtain SMILES labels.
    - Code implementation: [`CSU-IR/data_process/SMILES_extraction.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/data_process/SMILES_extraction.py).
 
 2. **SMILES verification**:
