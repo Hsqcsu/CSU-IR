@@ -11,7 +11,7 @@ To ensure one-to-one fidelity between IR and its chemical structure:
 
 2. **SMILES verification**:
    - An independent validation suite ([`CSU-IR/data_process/SMILES_verification.py`](https://github.com/Hsqcsu/CSU-IR/blob/main/CSU-IR/data_process/SMILES_verification.py)) was executed to let readers verify our data. 
-   - For complete reproducibility, full local verification logs are hosted on our [Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR):
+   - For complete reproducibility, full local verification logs are hosted on our [Hugging Face Repository](https://huggingface.co/Hsqcsu/CSU-IR/blob/main/Multi-stage%20training%20data/Stage%20III-%20EXP/EB/verification_log.txt):
      - `CSU-IR/Multi-stage training data/Stage III- EXP/EB/verification_log.txt` (EB dataset)
      - `CSU-IR/Multi-stage training data/Stage III- EXP/EB_TF/tf_data_verification_log.txt` (EB_TF dataset)
 ---
