@@ -61,7 +61,7 @@ def fetch_smiles_pubchem(substance_name, retries=3):
                 return resp.text.strip().split("\n")[0].strip()
             elif resp.status_code == 404:
                 return None
-            elif resp.status_code in [503, 429]:
+            elif resp.status_code in [503, 429]:  # Rate-limiting wait
                 time.sleep(1.0)
         except Exception:
             time.sleep(0.5)
@@ -149,82 +149,152 @@ def run_verification(target_type):
     error_records = []
 
     with open(log_output_path, "w", encoding="utf-8") as log_file:
+        # File header strictly matching respective dataset logs
         log_file.write("====================================================\n")
-        log_file.write(
-            f"     SMILES Verification & Web Retrieval Log ({target_type})    \n"
-        )
-        log_file.write(
-            f"     Execution Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
-        )
-        log_file.write(
-            "     Language: English (All-inclusive: SUCCESS & FAILED)\n"
-        )
+        if target_type == "EB_TF":
+            log_file.write(
+                "    TF SMILES Verification & Web Retrieval Log      \n"
+            )
+            log_file.write(
+                f"    Execution Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            )
+            log_file.write(
+                "    Datasets: train, val, test (TF/ThermoFisher only)\n"
+            )
+            log_file.write(
+                "    Language: English (All-inclusive: SUCCESS & FAILED)\n"
+            )
+        else:
+            log_file.write(
+                f"     SMILES Verification & Web Retrieval Log ({target_type})    \n"
+            )
+            log_file.write(
+                f"     Execution Start Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+            )
+            log_file.write(
+                "     Language: English (All-inclusive: SUCCESS & FAILED)\n"
+            )
         log_file.write(
             "====================================================\n\n"
         )
         log_file.flush()
 
         for split in DATASETS:
-            enriched_file = os.path.join(
-                data_dir, f"{split}_labels_enriched_for_verification.txt"
-            )
-            augmented_file = os.path.join(data_dir, f"{split}_smiles.txt")
+            # Candidate file paths covering diverse naming conventions
+            candidate_enriched = [
+                os.path.join(
+                    data_dir,
+                    f"{target_type}_{split}_labels_enriched_for_verification.txt",
+                ),
+                os.path.join(
+                    data_dir, f"{split}_labels_enriched_for_verification.txt"
+                ),
+                os.path.join(data_dir, f"{split}_tf_source_extended.txt"),
+            ]
+            candidate_augmented = [
+                os.path.join(data_dir, f"{target_type}_{split}_smiles.txt"),
+                os.path.join(data_dir, f"{split}_smiles.txt"),
+                os.path.join(data_dir, f"{split}_smiles_augmented.txt"),
+            ]
 
-            if not os.path.exists(enriched_file) or not os.path.exists(
-                augmented_file
-            ):
+            enriched_file = next(
+                (f for f in candidate_enriched if os.path.exists(f)), None
+            )
+            augmented_file = next(
+                (f for f in candidate_augmented if os.path.exists(f)), None
+            )
+
+            if not enriched_file or not augmented_file:
                 tqdm.write(
                     f"[SKIP] Relevant files not found for dataset split: {split}"
                 )
                 continue
 
+            tqdm.write(
+                f"[INFO] Using enriched/TF file: {os.path.basename(enriched_file)}"
+            )
+            tqdm.write(
+                f"[INFO] Using SMILES file:      {os.path.basename(augmented_file)}"
+            )
+
             with open(enriched_file, "r", encoding="utf-8") as f:
-                enriched_lines = [line.rstrip("\r\n") for line in f]
+                lines = [line.rstrip("\r\n") for line in f if line.strip()]
 
             with open(augmented_file, "r", encoding="utf-8") as f:
-                augmented_smiles_lines = [line.rstrip("\r\n") for line in f]
+                split_augmented_smiles = [
+                    line.rstrip("\r\n") for line in f if line.strip()
+                ]
 
-            total_lines = len(enriched_lines)
+            # Remove header line if present
+            if lines and (
+                lines[0].startswith("split_line_idx")
+                or lines[0].startswith("source\t")
+            ):
+                data_lines = lines[1:]
+            else:
+                data_lines = lines
+
+            total_lines = len(data_lines)
             tqdm.write(
-                f"\n{'=' * 25} Starting verification for: {target_type} [{split.upper()}] {'=' * 25}"
+                f"\n{'=' * 25} Starting verification for: {target_type} [{split.upper()}] (Total: {total_lines}) {'=' * 25}"
             )
 
             pbar = tqdm(
-                enumerate(enriched_lines, start=1),
+                enumerate(data_lines, start=1),
                 total=total_lines,
                 desc=f"Progress [{split.upper()}]",
                 unit="item",
                 dynamic_ncols=True,
             )
 
-            for line_idx, line in pbar:
+            for cur_idx, line in pbar:
                 if not line.strip():
                     continue
 
                 parts = line.split("\t")
-                if len(parts) < 6:
-                    continue
 
-                source = parts[0].strip()
-                file_name = parts[1].strip()
-                smiles_query = parts[2].strip()
-                use_iupac = parts[3].strip()
-                desalted_query = parts[4].strip()
-                desalted_smiles = parts[5].strip()
+                # Adaptive parsing: 7-column EB_TF vs 6-column EB
+                is_tf_format = len(parts) >= 7 or (
+                    len(parts) >= 6 and parts[0].strip().isdigit()
+                )
 
+                if is_tf_format:
+                    split_line_idx = int(parts[0].strip())
+                    source = parts[1].strip()
+                    file_name = parts[2].strip()
+                    smiles_query = parts[3].strip()
+                    use_iupac = parts[4].strip()
+                    desalted_query = parts[5].strip()
+                    desalted_smiles = (
+                        parts[6].strip() if len(parts) > 6 else ""
+                    )
+                else:
+                    split_line_idx = None
+                    source = parts[0].strip()
+                    file_name = parts[1].strip()
+                    smiles_query = parts[2].strip()
+                    use_iupac = parts[3].strip()
+                    desalted_query = parts[4].strip()
+                    desalted_smiles = parts[5].strip()
+
+                # SDBS or empty query: silently skip
                 if (
                     source == "SDBS"
-                    or smiles_query == "None"
                     or not smiles_query
+                    or smiles_query == "None"
                 ):
                     continue
 
-                if line_idx <= len(augmented_smiles_lines):
-                    csu_target_smiles = augmented_smiles_lines[
-                        line_idx - 1
+                # Locate target ground-truth SMILES
+                actual_lookup_idx = (
+                    split_line_idx if split_line_idx is not None else cur_idx
+                )
+                if 1 <= actual_lookup_idx <= len(split_augmented_smiles):
+                    csu_raw_target_smiles = split_augmented_smiles[
+                        actual_lookup_idx - 1
                     ].strip()
                 else:
-                    csu_target_smiles = None
+                    csu_raw_target_smiles = None
 
                 is_salt_handled = desalted_query.upper() == "YES"
                 salt_status_str = (
@@ -233,16 +303,18 @@ def run_verification(target_type):
                     else "NO (As-is)"
                 )
 
+                # Determine the target SMILES used for evaluation
                 if is_salt_handled:
                     eval_target_smiles = desalted_smiles
                 else:
-                    eval_target_smiles = csu_target_smiles
+                    eval_target_smiles = csu_raw_target_smiles
 
+                # Web retrieval
                 queried_smiles, tool_name = query_smiles(
                     smiles_query, use_iupac
                 )
 
-                # Canonicalization with & without stereo
+                # Stereo and non-stereo canonicalization
                 canon_queried_stereo = canonicalize_stereo(queried_smiles)
                 canon_target_stereo = canonicalize_stereo(eval_target_smiles)
                 canon_queried_no_stereo = canonicalize_no_stereo(queried_smiles)
@@ -250,6 +322,7 @@ def run_verification(target_type):
                     eval_target_smiles
                 )
 
+                # Evaluate consistency
                 is_match = False
                 is_stereo_match = False
                 fail_reason = ""
@@ -294,14 +367,28 @@ def run_verification(target_type):
                     en_status = "FAILED - Inconsistent Canonical SMILES"
                     en_consistency = "NO (Mismatch)"
 
-                # Assemble log
+                # Build log lines
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[
                     :-3
                 ]
                 log_lines = [
                     f"[{timestamp}] STATUS: {en_status}",
                     f"  Dataset               : {split}",
-                    f"  Index                 : Line {line_idx}",
+                ]
+
+                # Reproduce line index format for respective datasets
+                if is_tf_format:
+                    log_lines.append(
+                        "  Split File Line Index :"
+                        f" Line {split_line_idx} (in"
+                        f" {split}_source_file_name.txt)"
+                    )
+                else:
+                    log_lines.append(
+                        f"  Index                 : Line {cur_idx}"
+                    )
+
+                log_lines.extend([
                     f"  Source                : {source}",
                     f"  File Name             : {file_name}",
                     f"  Tool Used             : {tool_name}",
@@ -311,20 +398,29 @@ def run_verification(target_type):
                         f" {queried_smiles if queried_smiles else 'None (Not Found)'}"
                     ),
                     f"  Salt Handled          : {salt_status_str}",
-                ]
+                ])
 
+                # Reproduce Target SMILES format for respective datasets
                 if queried_smiles:
-                    log_lines.append(
-                        "  Target SMILES (Used in CSU-IR)   :"
-                        f" {csu_target_smiles}"
-                    )
-                    if is_salt_handled:
+                    if is_tf_format:
+                        # EB_TF layout: no space before colon, no separate desalted line
                         log_lines.append(
-                            "  Target SMILES (desalted)         :"
-                            f" {desalted_smiles}"
+                            f"  Target SMILES (Used in CSU-IR):"
+                            f" {eval_target_smiles}"
                         )
+                    else:
+                        # EB layout: 3 spaces before colon, separate desalted line if applicable
+                        log_lines.append(
+                            "  Target SMILES (Used in CSU-IR)   :"
+                            f" {csu_raw_target_smiles}"
+                        )
+                        if is_salt_handled:
+                            log_lines.append(
+                                "  Target SMILES (desalted)         :"
+                                f" {desalted_smiles}"
+                            )
 
-                    # Dynamic log format based on stereo match
+                    # Output the final three lines matching log update script format
                     if is_stereo_match:
                         log_lines.extend([
                             f"  Canon Queried : {canon_queried_stereo}",
@@ -351,9 +447,13 @@ def run_verification(target_type):
                 log_file.write("\n".join(log_lines))
                 log_file.flush()
 
+                # Record failures
                 if not is_match:
+                    display_idx = (
+                        split_line_idx if is_tf_format else cur_idx
+                    )
                     err_msg = (
-                        f"\n{'!' * 20} [MISMATCH DETECTED] Line: {line_idx}"
+                        f"\n{'!' * 20} [MISMATCH DETECTED] Line: {display_idx}"
                         f" ({split}) {'!' * 20}\n[Raw Line Content]           "
                         f" : {line}\n  - Source                     : {source}\n"
                         f"  - File Name                  : {file_name}\n  -"
@@ -362,23 +462,21 @@ def run_verification(target_type):
                         f" Queried SMILES             : {queried_smiles}\n  -"
                         f" Salt Handled               : {desalted_query}\n  -"
                         " Target SMILES in Dataset   :"
-                        f" {csu_target_smiles}\n  - Target SMILES Evaluated   "
-                        f" : {eval_target_smiles}\n  - Failure Reason          "
+                        f" {eval_target_smiles}\n  - Failure Reason          "
                         f"   : {fail_reason}\n{'!' * 65}\n"
                     )
                     tqdm.write(err_msg)
 
                     error_records.append({
                         "dataset": split,
-                        "line_number": line_idx,
+                        "line_number": display_idx,
                         "source": source,
                         "file_name": file_name,
                         "smiles_query": smiles_query,
                         "use_IUPAC": use_iupac,
                         "desalted_query": desalted_query,
                         "desalted_smiles": desalted_smiles,
-                        "target_smiles_used_in_csu": csu_target_smiles,
-                        "target_smiles_evaluated": eval_target_smiles,
+                        "target_smiles_used_in_csu": eval_target_smiles,
                         "queried_smiles": queried_smiles,
                         "canon_target": canon_target_no_stereo,
                         "canon_queried": canon_queried_no_stereo,
@@ -388,6 +486,7 @@ def run_verification(target_type):
 
                 pbar.set_postfix({"failed_count": len(error_records)})
 
+    # ==================== 5. Output Error Report (CSV) ====================
     tqdm.write("\n" + "=" * 50)
     tqdm.write(
         f"All query logs (including SUCCESS and FAILED) saved to:"
@@ -409,6 +508,7 @@ def run_verification(target_type):
 
 
 def select_dataset_interactive():
+    """Prompt user to select dataset interactively."""
     print("\n" + "=" * 45)
     print("      Select Dataset for SMILES Verification")
     print("=" * 45)
