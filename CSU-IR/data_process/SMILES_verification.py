@@ -9,7 +9,7 @@
 import argparse
 from datetime import datetime
 import os
-import sys  # Added missing sys import
+import sys
 import time
 import urllib.parse
 import pandas as pd
@@ -47,7 +47,7 @@ DATA_PATHS = {
 DATASETS = ["train", "val", "test"]
 
 
-# ==================== 2. SMILES Retrieval Tools (Real-time requests per item) ====================
+# ==================== 2. SMILES Retrieval Tools ====================
 def fetch_smiles_pubchem(substance_name, retries=3):
     """Retrieve SMILES by substance name or CAS registry number from PubChem PUG REST API."""
     if not substance_name or substance_name == "None":
@@ -61,7 +61,7 @@ def fetch_smiles_pubchem(substance_name, retries=3):
                 return resp.text.strip().split("\n")[0].strip()
             elif resp.status_code == 404:
                 return None
-            elif resp.status_code in [503, 429]:  # Rate-limiting wait
+            elif resp.status_code in [503, 429]:
                 time.sleep(1.0)
         except Exception:
             time.sleep(0.5)
@@ -87,7 +87,7 @@ def fetch_smiles_opsin(substance_name, retries=3):
 
 
 def query_smiles(name, use_iupac):
-    """Send an independent network request based on whether use_iupac is 'YES', returning (smiles, tool_name)."""
+    """Send an independent network request based on whether use_iupac is 'YES'."""
     tool = (
         "OPSIN Web Engine"
         if str(use_iupac).strip().upper() == "YES"
@@ -99,9 +99,22 @@ def query_smiles(name, use_iupac):
         return fetch_smiles_pubchem(name), tool
 
 
-# ==================== 3. Non-stereochemical SMILES Canonicalization ====================
+# ==================== 3. SMILES Canonicalization Tools ====================
+def canonicalize_stereo(smiles):
+    """Canonicalize SMILES while PRESERVING stereochemical information."""
+    if not smiles or smiles == "None":
+        return None
+    try:
+        mol = Chem.MolFromSmiles(str(smiles).strip())
+        if mol is None:
+            return None
+        return Chem.MolToSmiles(mol, isomericSmiles=True, canonical=True)
+    except Exception:
+        return None
+
+
 def canonicalize_no_stereo(smiles):
-    """Remove chiral and cis/trans stereochemical information via RDKit and output canonical SMILES."""
+    """Remove chiral and cis/trans stereochemical information and output canonical SMILES."""
     if not smiles or smiles == "None":
         return None
     try:
@@ -126,7 +139,6 @@ def run_verification(target_type):
     print(f"\nTarget Dataset Selected: [{target_type}]")
     print(f"Directory: {data_dir}")
 
-    # Output paths tailored to the selected dataset
     report_output_path = os.path.join(
         data_dir, f"{target_type}_smiles_verification_error_report.csv"
     )
@@ -136,7 +148,6 @@ def run_verification(target_type):
 
     error_records = []
 
-    # Open TXT log file (immediate flush, append records on-the-fly)
     with open(log_output_path, "w", encoding="utf-8") as log_file:
         log_file.write("====================================================\n")
         log_file.write(
@@ -167,7 +178,6 @@ def run_verification(target_type):
                 )
                 continue
 
-            # Use rstrip('\r\n') to keep physical line indices strictly aligned
             with open(enriched_file, "r", encoding="utf-8") as f:
                 enriched_lines = [line.rstrip("\r\n") for line in f]
 
@@ -202,7 +212,6 @@ def run_verification(target_type):
                 desalted_query = parts[4].strip()
                 desalted_smiles = parts[5].strip()
 
-                # 1. SDBS or empty substance name: silently skip without sending queries
                 if (
                     source == "SDBS"
                     or smiles_query == "None"
@@ -210,7 +219,6 @@ def run_verification(target_type):
                 ):
                     continue
 
-                # 2. Read the actual Target SMILES used in CSU-IR (matching line index from smiles file)
                 if line_idx <= len(augmented_smiles_lines):
                     csu_target_smiles = augmented_smiles_lines[
                         line_idx - 1
@@ -218,7 +226,6 @@ def run_verification(target_type):
                 else:
                     csu_target_smiles = None
 
-                # 3. Determine target structure to compare against web query result (eval_target_smiles)
                 is_salt_handled = desalted_query.upper() == "YES"
                 salt_status_str = (
                     "YES (Desalted/Salt-handled)"
@@ -231,20 +238,22 @@ def run_verification(target_type):
                 else:
                     eval_target_smiles = csu_target_smiles
 
-                # 4. Fire independent web request
                 queried_smiles, tool_name = query_smiles(
                     smiles_query, use_iupac
                 )
 
-                # 5. Non-stereochemical canonicalization
-                canon_queried = canonicalize_no_stereo(queried_smiles)
-                canon_target = canonicalize_no_stereo(eval_target_smiles)
+                # Canonicalization with & without stereo
+                canon_queried_stereo = canonicalize_stereo(queried_smiles)
+                canon_target_stereo = canonicalize_stereo(eval_target_smiles)
+                canon_queried_no_stereo = canonicalize_no_stereo(queried_smiles)
+                canon_target_no_stereo = canonicalize_no_stereo(
+                    eval_target_smiles
+                )
 
-                # 6. Check consistency and determine status
                 is_match = False
+                is_stereo_match = False
                 fail_reason = ""
                 en_status = ""
-                en_consistency = ""
 
                 if not queried_smiles:
                     fail_reason = (
@@ -253,19 +262,28 @@ def run_verification(target_type):
                     )
                     en_status = "FAILED - SMILES Not Found"
                     en_consistency = "N/A (Query Failed)"
-                elif canon_queried is None:
+                elif canon_queried_no_stereo is None:
                     fail_reason = "Retrieved SMILES could not be parsed by RDKit"
                     en_status = "FAILED - Queried SMILES Parsing Error"
                     en_consistency = "N/A (Parse Error)"
-                elif canon_target is None:
+                elif canon_target_no_stereo is None:
                     fail_reason = (
                         "Target comparison SMILES could not be parsed by RDKit"
                         " or is empty"
                     )
                     en_status = "FAILED - Target SMILES Invalid"
                     en_consistency = "N/A (Invalid Target)"
-                elif canon_queried == canon_target:
+                elif (
+                    canon_queried_stereo is not None
+                    and canon_queried_stereo == canon_target_stereo
+                ):
                     is_match = True
+                    is_stereo_match = True
+                    en_status = "SUCCESS"
+                    en_consistency = "YES"
+                elif canon_queried_no_stereo == canon_target_no_stereo:
+                    is_match = True
+                    is_stereo_match = False
                     en_status = "SUCCESS"
                     en_consistency = "YES (Consistent without stereo)"
                 else:
@@ -276,11 +294,10 @@ def run_verification(target_type):
                     en_status = "FAILED - Inconsistent Canonical SMILES"
                     en_consistency = "NO (Mismatch)"
 
-                # 7. Write to TXT log
+                # Assemble log
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[
                     :-3
                 ]
-
                 log_lines = [
                     f"[{timestamp}] STATUS: {en_status}",
                     f"  Dataset               : {split}",
@@ -296,7 +313,6 @@ def run_verification(target_type):
                     f"  Salt Handled          : {salt_status_str}",
                 ]
 
-                # Detailed structure output
                 if queried_smiles:
                     log_lines.append(
                         "  Target SMILES (Used in CSU-IR)   :"
@@ -308,27 +324,33 @@ def run_verification(target_type):
                             f" {desalted_smiles}"
                         )
 
-                    log_lines.extend([
-                        (
-                            "  Canon Queried (No-Iso):"
-                            f" {canon_queried if canon_queried else 'Invalid'}"
-                        ),
-                        (
-                            "  Canon Target  (No-Iso):"
-                            f" {canon_target if canon_target else 'Invalid'}"
-                        ),
-                        f"  Match                 : {en_consistency}",
-                    ])
+                    # Dynamic log format based on stereo match
+                    if is_stereo_match:
+                        log_lines.extend([
+                            f"  Canon Queried : {canon_queried_stereo}",
+                            f"  Canon Target  : {canon_target_stereo}",
+                            "  Match                 : YES",
+                        ])
+                    else:
+                        log_lines.extend([
+                            (
+                                "  Canon Queried (No-Iso):"
+                                f" {canon_queried_no_stereo if canon_queried_no_stereo else 'Invalid'}"
+                            ),
+                            (
+                                "  Canon Target  (No-Iso):"
+                                f" {canon_target_no_stereo if canon_target_no_stereo else 'Invalid'}"
+                            ),
+                            f"  Match                 : {en_consistency}",
+                        ])
                 else:
                     log_lines.append(f"  Match                 : {en_consistency}")
 
                 log_lines.append("-" * 75 + "\n")
 
-                # Flush to disk immediately
                 log_file.write("\n".join(log_lines))
                 log_file.flush()
 
-                # 8. Append failure cases to CSV error report and highlight in console
                 if not is_match:
                     err_msg = (
                         f"\n{'!' * 20} [MISMATCH DETECTED] Line: {line_idx}"
@@ -358,15 +380,14 @@ def run_verification(target_type):
                         "target_smiles_used_in_csu": csu_target_smiles,
                         "target_smiles_evaluated": eval_target_smiles,
                         "queried_smiles": queried_smiles,
-                        "canon_target": canon_target,
-                        "canon_queried": canon_queried,
+                        "canon_target": canon_target_no_stereo,
+                        "canon_queried": canon_queried_no_stereo,
                         "fail_reason": fail_reason,
                         "raw_line": line,
                     })
 
                 pbar.set_postfix({"failed_count": len(error_records)})
 
-    # ==================== 5. Output Error Report (CSV) ====================
     tqdm.write("\n" + "=" * 50)
     tqdm.write(
         f"All query logs (including SUCCESS and FAILED) saved to:"
@@ -388,7 +409,6 @@ def run_verification(target_type):
 
 
 def select_dataset_interactive():
-    """Prompt user to select dataset via interactive terminal input if no CLI argument passed."""
     print("\n" + "=" * 45)
     print("      Select Dataset for SMILES Verification")
     print("=" * 45)
@@ -414,10 +434,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    # Determine dataset selection: CLI argument takes precedence; fallback to prompt
-    if args.dataset:
-        selected_dataset = args.dataset
-    else:
-        selected_dataset = select_dataset_interactive()
-
+    selected_dataset = (
+        args.dataset if args.dataset else select_dataset_interactive()
+    )
     run_verification(selected_dataset)
