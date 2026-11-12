@@ -180,64 +180,34 @@ def run_verification(target_type):
         log_file.flush()
 
         for split in DATASETS:
-            # Candidate file paths covering diverse naming conventions
-            if target_type == "EB_TF":
-                candidate_enriched = [
-                    os.path.join(
-                        data_dir,
-                        f"EB_TF_{split}_labels_enriched_for_verification.txt",
-                    ),
-                    os.path.join(
-                        data_dir, f"EB_TF_{split}_tf_source_extended.txt"
-                    ),
-                ]
-                candidate_augmented = [
-                    os.path.join(data_dir, f"EB_TF_{split}_smiles.txt"),
-                    os.path.join(
-                        data_dir, f"EB_TF_{split}_smiles_augmented.txt"
-                    ),
-                ]
-            else:
-                candidate_enriched = [
-                    os.path.join(
-                        data_dir,
-                        f"{target_type}_{split}_labels_enriched_for_verification.txt",
-                    ),
-                    os.path.join(
-                        data_dir, f"{split}_labels_enriched_for_verification.txt"
-                    ),
-                    os.path.join(data_dir, f"{split}_tf_source_extended.txt"),
-                ]
-                candidate_augmented = [
-                    os.path.join(data_dir, f"{target_type}_{split}_smiles.txt"),
-                    os.path.join(data_dir, f"{split}_smiles.txt"),
-                    os.path.join(data_dir, f"{split}_smiles_augmented.txt"),
-                ]
-
-            enriched_file = next(
-                (f for f in candidate_enriched if os.path.exists(f)), None
+            prefix = "EB_TF_" if target_type == "EB_TF" else ""
+            label_file = os.path.join(
+                data_dir, f"{prefix}{split}_labels_enriched_for_verification.txt"
             )
-            augmented_file = next(
-                (f for f in candidate_augmented if os.path.exists(f)), None
+            smiles_file = os.path.join(
+                data_dir, f"{prefix}{split}_smiles.txt"
             )
 
-            if not enriched_file or not augmented_file:
+            if not os.path.exists(label_file) or not os.path.exists(
+                    smiles_file
+            ):
                 tqdm.write(
                     f"[SKIP] Relevant files not found for dataset split: {split}"
                 )
                 continue
 
+
             tqdm.write(
-                f"[INFO] Using enriched/TF file: {os.path.basename(enriched_file)}"
+                f"[INFO] Using enriched/TF file: {os.path.basename(label_file)}"
             )
             tqdm.write(
-                f"[INFO] Using SMILES file:      {os.path.basename(augmented_file)}"
+                f"[INFO] Using SMILES file:      {os.path.basename(smiles_file)}"
             )
 
-            with open(enriched_file, "r", encoding="utf-8") as f:
+            with open(label_file, "r", encoding="utf-8") as f:
                 lines = [line.rstrip("\r\n") for line in f if line.strip()]
 
-            with open(augmented_file, "r", encoding="utf-8") as f:
+            with open(smiles_file, "r", encoding="utf-8") as f:
                 split_augmented_smiles = [
                     line.rstrip("\r\n") for line in f if line.strip()
                 ]
