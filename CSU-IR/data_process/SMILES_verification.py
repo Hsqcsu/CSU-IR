@@ -181,21 +181,38 @@ def run_verification(target_type):
 
         for split in DATASETS:
             # Candidate file paths covering diverse naming conventions
-            candidate_enriched = [
-                os.path.join(
-                    data_dir,
-                    f"{target_type}_{split}_labels_enriched_for_verification.txt",
-                ),
-                os.path.join(
-                    data_dir, f"{split}_labels_enriched_for_verification.txt"
-                ),
-                os.path.join(data_dir, f"{split}_tf_source_extended.txt"),
-            ]
-            candidate_augmented = [
-                os.path.join(data_dir, f"{target_type}_{split}_smiles.txt"),
-                os.path.join(data_dir, f"{split}_smiles.txt"),
-                os.path.join(data_dir, f"{split}_smiles_augmented.txt"),
-            ]
+            if target_type == "EB_TF":
+                candidate_enriched = [
+                    os.path.join(
+                        data_dir,
+                        f"EB_TF_{split}_labels_enriched_for_verification.txt",
+                    ),
+                    os.path.join(
+                        data_dir, f"EB_TF_{split}_tf_source_extended.txt"
+                    ),
+                ]
+                candidate_augmented = [
+                    os.path.join(data_dir, f"EB_TF_{split}_smiles.txt"),
+                    os.path.join(
+                        data_dir, f"EB_TF_{split}_smiles_augmented.txt"
+                    ),
+                ]
+            else:
+                candidate_enriched = [
+                    os.path.join(
+                        data_dir,
+                        f"{target_type}_{split}_labels_enriched_for_verification.txt",
+                    ),
+                    os.path.join(
+                        data_dir, f"{split}_labels_enriched_for_verification.txt"
+                    ),
+                    os.path.join(data_dir, f"{split}_tf_source_extended.txt"),
+                ]
+                candidate_augmented = [
+                    os.path.join(data_dir, f"{target_type}_{split}_smiles.txt"),
+                    os.path.join(data_dir, f"{split}_smiles.txt"),
+                    os.path.join(data_dir, f"{split}_smiles_augmented.txt"),
+                ]
 
             enriched_file = next(
                 (f for f in candidate_enriched if os.path.exists(f)), None
