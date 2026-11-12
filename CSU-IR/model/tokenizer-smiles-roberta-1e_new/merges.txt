@@ -10,7 +10,7 @@ S i
 C l
 A r
 C a
-G G
+S c
 T i
 C r
 M n
@@ -96,7 +96,7 @@ H s
 M t
 D s
 R g
-G M
+C n
 N h
 F l
 M c
